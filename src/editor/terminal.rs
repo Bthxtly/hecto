@@ -26,12 +26,27 @@ impl Terminal {
     }
 
     pub fn move_cursor_to(x: u16, y: u16) -> Result<(), std::io::Error> {
+    pub fn clear_line() -> Result<(), std::io::Error> {
+        queue!(stdout(), Clear(ClearType::CurrentLine))?;
+        Ok(())
+    }
+
         queue!(stdout(), MoveTo(p.x, p.y))?;
         Ok(())
     }
 
     pub fn size() -> Result<(u16, u16), std::io::Error> {
         size()
+    pub fn hide_cursor() -> Result<(), std::io::Error> {
+        queue!(stdout(), Hide)?;
+        Ok(())
+    }
+
+    pub fn show_cursor() -> Result<(), std::io::Error> {
+        queue!(stdout(), Show)?;
+        Ok(())
+    }
+
     pub fn print(s: &str) -> Result<(), std::io::Error> {
         queue!(stdout(), Print(s))?;
         Ok(())
