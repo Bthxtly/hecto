@@ -83,7 +83,7 @@ impl Editor {
             welcome_message.truncate(width);
         }
 
-        Terminal::print(welcome_message.as_ref())?;
+        Terminal::print(welcome_message)?;
         Ok(())
     }
 
