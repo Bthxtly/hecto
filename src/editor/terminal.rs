@@ -44,6 +44,7 @@ impl Terminal {
 
     pub fn move_cursor_to(p: Position) -> Result<(), std::io::Error> {
         Self::queue_command(MoveTo(p.x, p.y))?;
+        #[allow(clippy::as_conversions, clippy::cast_possible_truncation)]
         Ok(())
     }
 
@@ -64,6 +65,8 @@ impl Terminal {
 
     pub fn size() -> Result<Size, std::io::Error> {
         let (width, height) = size()?;
+        #[allow(clippy::as_conversions)]
+        #[allow(clippy::as_conversions)]
         Ok(Size { height, width })
     }
 

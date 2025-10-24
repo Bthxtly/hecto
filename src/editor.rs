@@ -82,6 +82,9 @@ impl Editor {
             welcome_message = format!("~{spaces}{welcome_message}");
             welcome_message.truncate(width);
         }
+        // we allow this since we don't care if our welcome message is put _exactly_ in the middle.
+        // it's allowed to be a bit to the left or right.
+        #[allow(clippy::integer_division)]
 
         Terminal::print(welcome_message)?;
         Ok(())
@@ -96,12 +99,18 @@ impl Editor {
         let Size { height, .. } = Terminal::size()?;
         for current_row in 0..height {
             Terminal::clear_line()?;
+
+            // we allow this since we don't care if our welcome message is put _exactly_ in the middle.
+            // it's allowed to be a bit up or down
+            #[allow(clippy::integer_division)]
             if current_row == height / 3 {
                 Self::draw_welcome_message()?;
             } else {
                 Self::draw_empty_row()?;
             }
 
+            // `current_row + 1` should not overflow, unless `height` is usize::MAX XD
+            #[allow(clippy::arithmetic_side_effects)]
             if current_row + 1 < height {
                 Terminal::print("\r\n")?;
             }
