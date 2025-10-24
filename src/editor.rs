@@ -61,7 +61,7 @@ impl Editor {
             Terminal::print("Goodbye.\r\n")?;
         } else {
             Self::draw_rows()?;
-            Terminal::move_cursor_to(Position { x: 0, y: 0 })?;
+            Terminal::move_cursor_to(&Position { x: 0, y: 0 })?;
         }
         Terminal::show_cursor()?;
         Terminal::execute()?;
@@ -71,20 +71,18 @@ impl Editor {
     fn draw_welcome_message() -> Result<(), std::io::Error> {
         let mut welcome_message = format!("{NAME} editor -- version {VERSION}");
 
-        let width = Terminal::size()?.width as usize;
+        let width = Terminal::size()?.width;
         let len = welcome_message.len();
-        if width < len {
-            welcome_message = "~".to_string(); // don't display welcome message if too narrow
-        } else {
-            let padding = (width - len) / 2;
 
-            let spaces = " ".repeat(padding - 1);
-            welcome_message = format!("~{spaces}{welcome_message}");
-            welcome_message.truncate(width);
-        }
         // we allow this since we don't care if our welcome message is put _exactly_ in the middle.
         // it's allowed to be a bit to the left or right.
         #[allow(clippy::integer_division)]
+        let padding = (width.saturating_sub(len)) / 2;
+
+        let spaces = " ".repeat(padding.saturating_sub(1));
+
+        welcome_message = format!("~{spaces}{welcome_message}");
+        welcome_message.truncate(width);
 
         Terminal::print(welcome_message)?;
         Ok(())
