@@ -1,7 +1,9 @@
+use std::cmp::min;
+
 use crossterm::event::{
     Event::{self, Key},
-    KeyCode::Char,
-    KeyEvent, KeyModifiers, read,
+    KeyCode::{self},
+    KeyEvent, KeyEventKind, KeyModifiers, read,
 };
 
 mod terminal;
@@ -10,15 +12,19 @@ use terminal::{Position, Size, Terminal};
 const NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+#[derive(Default)]
+struct Location {
+    x: usize,
+    y: usize,
+}
+
+#[derive(Default)]
 pub struct Editor {
     should_quit: bool,
+    location: Location,
 }
 
 impl Editor {
-    pub const fn default() -> Self {
-        Self { should_quit: false }
-    }
-
     pub fn run(&mut self) {
         Terminal::initialize().unwrap();
         let result = self.repl();
@@ -34,36 +40,88 @@ impl Editor {
             }
 
             let event = read()?;
-            self.evaluate_event(&event);
+            self.evaluate_event(&event)?;
         }
         Ok(())
     }
 
-    fn evaluate_event(&mut self, event: &Event) {
+    fn move_point(&mut self, key_code: KeyCode) -> Result<(), std::io::Error> {
+        let Location { mut x, mut y } = self.location;
+        let Size { height, width } = Terminal::size()?;
+        match key_code {
+            KeyCode::Up => {
+                y = y.saturating_sub(1);
+            }
+            KeyCode::Down => {
+                y = min(height.saturating_sub(1), y.saturating_add(1));
+            }
+            KeyCode::Left => {
+                x = x.saturating_sub(1);
+            }
+            KeyCode::Right => {
+                x = min(width.saturating_sub(1), x.saturating_add(1));
+            }
+            KeyCode::PageUp => {
+                y = 0;
+            }
+            KeyCode::PageDown => {
+                y = height.saturating_sub(1);
+            }
+            KeyCode::Home => {
+                x = 0;
+            }
+            KeyCode::End => {
+                x = width.saturating_sub(1);
+            }
+            _ => (),
+        }
+        self.location = Location { x, y };
+        Ok(())
+    }
+
+    fn evaluate_event(&mut self, event: &Event) -> Result<(), std::io::Error> {
         if let Key(KeyEvent {
-            code, modifiers, ..
+            code,
+            modifiers,
+            kind: KeyEventKind::Press,
+            ..
         }) = event
         {
             match code {
-                Char('t') if *modifiers == KeyModifiers::CONTROL => {
+                KeyCode::Char('t') if *modifiers == KeyModifiers::CONTROL => {
                     // CTRL+t to quit
                     self.should_quit = true;
+                }
+                KeyCode::Up
+                | KeyCode::Down
+                | KeyCode::Left
+                | KeyCode::Right
+                | KeyCode::PageUp
+                | KeyCode::PageDown
+                | KeyCode::Home
+                | KeyCode::End => {
+                    self.move_point(*code)?;
                 }
                 _ => (),
             }
         }
+        Ok(())
     }
 
     fn refresh_screen(&self) -> Result<(), std::io::Error> {
-        Terminal::hide_cursor()?;
+        Terminal::hide_caret()?;
+        Terminal::move_caret_to(&Position::default())?;
+
         if self.should_quit {
             Terminal::clear_screen()?;
             Terminal::print("Goodbye.\r\n")?;
         } else {
             Self::draw_rows()?;
-            Terminal::move_cursor_to(&Position { x: 0, y: 0 })?;
+            let Location { x, y } = self.location;
+            Terminal::move_caret_to(&Position { col: x, row: y })?;
         }
-        Terminal::show_cursor()?;
+
+        Terminal::show_caret()?;
         Terminal::execute()?;
         Ok(())
     }
