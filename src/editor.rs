@@ -142,7 +142,7 @@ impl Editor {
         welcome_message = format!("~{spaces}{welcome_message}");
         welcome_message.truncate(width);
 
-        Terminal::print(welcome_message)?;
+        Terminal::print(&welcome_message)?;
         Ok(())
     }
 

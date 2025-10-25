@@ -2,7 +2,7 @@ use crossterm::cursor::{Hide, MoveTo, Show};
 use crossterm::style::Print;
 use crossterm::terminal::{Clear, ClearType, disable_raw_mode, enable_raw_mode, size};
 use crossterm::{Command, queue};
-use std::fmt::Display;
+
 use std::io::{Write, stdout};
 
 pub struct Size {
@@ -67,7 +67,7 @@ impl Terminal {
         Ok(())
     }
 
-    pub fn print<T: Display>(s: T) -> Result<(), std::io::Error> {
+    pub fn print(s: &str) -> Result<(), std::io::Error> {
         Self::queue_command(Print(s))?;
         Ok(())
     }
