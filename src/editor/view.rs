@@ -1,9 +1,15 @@
 use super::terminal::{Size, Terminal};
 
+mod buffer;
+use buffer::Buffer;
+
 const NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-pub struct View;
+#[derive(Default)]
+pub struct View {
+    buffer: Buffer,
+}
 
 impl View {
     fn draw_empty_row() -> Result<(), std::io::Error> {
@@ -31,13 +37,15 @@ impl View {
         Ok(())
     }
 
-    pub fn render() -> Result<(), std::io::Error> {
+    pub fn render(&self) -> Result<(), std::io::Error> {
         let Size { height, .. } = Terminal::size()?;
         for current_row in 0..height {
             Terminal::clear_line()?;
 
-            if current_row == 0 {
-                Terminal::print("Hello, World!")?;
+            if let Some(s) = self.buffer.lines.get(current_row) {
+                Terminal::print(s)?;
+                Terminal::print("\r\n")?;
+                continue;
             }
 
             // we allow this since we don't care if our welcome message is put _exactly_ in the middle.
