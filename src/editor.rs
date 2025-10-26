@@ -1,4 +1,4 @@
-use std::cmp::min;
+use std::{cmp::min, env};
 
 use crossterm::event::{
     Event::{self, Key},
@@ -28,12 +28,20 @@ pub struct Editor {
 impl Editor {
     pub fn run(&mut self) {
         Terminal::initialize().unwrap();
+        self.handle_args();
         let result = self.repl();
         Terminal::terminate().unwrap();
         result.unwrap();
     }
 
-    pub fn repl(&mut self) -> Result<(), std::io::Error> {
+    fn handle_args(&mut self) {
+        let args: Vec<String> = env::args().collect();
+        if let Some(filename) = args.get(1) {
+            self.view.load(filename);
+        }
+    }
+
+    fn repl(&mut self) -> Result<(), std::io::Error> {
         loop {
             self.refresh_screen()?;
             if self.should_quit {

@@ -51,7 +51,7 @@ impl View {
             // we allow this since we don't care if our welcome message is put _exactly_ in the middle.
             // it's allowed to be a bit up or down
             #[allow(clippy::integer_division)]
-            if current_row == height / 3 {
+            if self.buffer.is_empty() && current_row == height / 3 {
                 Self::draw_welcome_message()?;
             } else {
                 Self::draw_empty_row()?;
@@ -64,5 +64,11 @@ impl View {
             }
         }
         Ok(())
+    }
+
+    pub fn load(&mut self, filename: &str) {
+        if let Ok(buffer) = Buffer::load(filename) {
+            self.buffer = buffer;
+        }
     }
 }
