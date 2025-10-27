@@ -1,4 +1,4 @@
-use super::terminal::{Size, Terminal};
+use super::terminal::{Position, Size, Terminal};
 
 mod buffer;
 use buffer::Buffer;
@@ -6,94 +6,96 @@ use buffer::Buffer;
 const NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-#[derive(Default)]
 pub struct View {
     buffer: Buffer,
+    needs_redraw: bool,
+    size: Size,
 }
 
 impl View {
-    fn draw_empty_row() -> Result<(), std::io::Error> {
-        Terminal::print("~")?;
+    pub fn resize(&mut self, size: Size) {
+        self.size = size;
+        self.needs_redraw = true;
+    }
+
+    fn render_line(at: usize, line_text: &str) -> Result<(), std::io::Error> {
+        Terminal::move_caret_to(&Position { row: at, col: 0 })?;
+        Terminal::clear_line()?;
+        Terminal::print(line_text)?;
         Ok(())
     }
 
-    fn draw_welcome_message() -> Result<(), std::io::Error> {
-        let mut welcome_message = format!("{NAME} editor -- version {VERSION}");
+    pub fn render(&mut self) -> Result<(), std::io::Error> {
+        if !self.needs_redraw {
+            return Ok(());
+        }
 
-        let width = Terminal::size()?.width;
+        let Size { height, width } = self.size;
+        if height == 0 || width == 0 {
+            return Ok(());
+        }
+
+        // we allow this since we don't care if our welcome message is put _exactly_ in the middle.
+        // it's allowed to be a bit up or down
+        #[allow(clippy::integer_division)]
+        let vertical_center = height / 3;
+
+        for current_row in 0..height {
+            if let Some(line) = self.buffer.lines.get(current_row) {
+                // render lines within screen width only
+                let truncated_line = line.get(0..width).unwrap_or(line);
+                Self::render_line(current_row, truncated_line);
+            } else if (current_row == vertical_center) && self.buffer.is_empty() {
+                // render welcome message if no file is opened
+                Self::render_line(current_row, &Self::build_welcome_message(width));
+            } else {
+                // else render tilde at empty lines
+                Self::render_line(current_row, "~");
+            }
+
+            // `current_row + 1` should not overflow, unless `height` is usize::MAX XD
+            #[allow(clippy::arithmetic_side_effects)]
+            if current_row + 1 < height {
+                Terminal::print("\r\n")?;
+            }
+        }
+
+        self.needs_redraw = false;
+        Ok(())
+    }
+
+    fn build_welcome_message(width: usize) -> String {
+        let welcome_message = format!("{NAME} editor -- version {VERSION}");
+
         let len = welcome_message.len();
+        if width <= len {
+            return "~".to_string();
+        }
 
         // we allow this since we don't care if our welcome message is put _exactly_ in the middle.
         // it's allowed to be a bit to the left or right.
         #[allow(clippy::integer_division)]
-        let padding = (width.saturating_sub(len)) / 2;
+        let padding = (width.saturating_sub(len).saturating_sub(1)) / 2;
 
-        let spaces = " ".repeat(padding.saturating_sub(1));
+        let mut full_message = format!("~{}{}", " ".repeat(padding), welcome_message);
+        full_message.truncate(width);
 
-        welcome_message = format!("~{spaces}{welcome_message}");
-        welcome_message.truncate(width);
-
-        Terminal::print(&welcome_message)?;
-        Ok(())
-    }
-
-    fn render_welcome_screen() -> Result<(), std::io::Error> {
-        let Size { height, .. } = Terminal::size()?;
-
-        for current_row in 0..height {
-            Terminal::clear_line()?;
-
-            // we allow this since we don't care if our welcome message is put _exactly_ in the middle.
-            // it's allowed to be a bit up or down
-            #[allow(clippy::integer_division)]
-            if current_row == height / 3 {
-                Self::draw_welcome_message()?;
-            } else {
-                Self::draw_empty_row()?;
-            }
-
-            // `current_row + 1` should not overflow, unless `height` is usize::MAX XD
-            #[allow(clippy::arithmetic_side_effects)]
-            if current_row + 1 < height {
-                Terminal::print("\r\n")?;
-            }
-        }
-        Ok(())
-    }
-
-    fn render_buffer(&self) -> Result<(), std::io::Error> {
-        let Size { height, .. } = Terminal::size()?;
-
-        for current_row in 0..height {
-            Terminal::clear_line()?;
-
-            if let Some(s) = self.buffer.lines.get(current_row) {
-                Terminal::print(s)?;
-            } else {
-                Self::draw_empty_row()?;
-            }
-
-            // `current_row + 1` should not overflow, unless `height` is usize::MAX XD
-            #[allow(clippy::arithmetic_side_effects)]
-            if current_row + 1 < height {
-                Terminal::print("\r\n")?;
-            }
-        }
-        Ok(())
-    }
-
-    pub fn render(&self) -> Result<(), std::io::Error> {
-        if self.buffer.is_empty() {
-            Self::render_welcome_screen()?;
-        } else {
-            self.render_buffer()?;
-        }
-        Ok(())
+        full_message
     }
 
     pub fn load(&mut self, filename: &str) {
         if let Ok(buffer) = Buffer::load(filename) {
             self.buffer = buffer;
+        }
+    }
+}
+
+impl Default for View {
+    fn default() -> Self {
+        Self {
+            buffer: Buffer::default(),
+            needs_redraw: true,
+            size: Terminal::size().unwrap_or_default(),
         }
     }
 }

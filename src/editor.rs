@@ -1,7 +1,7 @@
 use std::{cmp::min, env};
 
 use crossterm::event::{
-    Event::{self, Key},
+    Event::{self, Key, Resize},
     KeyCode::{self},
     KeyEvent, KeyEventKind, KeyModifiers, read,
 };
@@ -49,7 +49,7 @@ impl Editor {
             }
 
             let event = read()?;
-            self.evaluate_event(&event)?;
+            self.evaluate_event(event)?;
         }
         Ok(())
     }
@@ -88,36 +88,44 @@ impl Editor {
         Ok(())
     }
 
-    fn evaluate_event(&mut self, event: &Event) -> Result<(), std::io::Error> {
-        if let Key(KeyEvent {
-            code,
-            modifiers,
-            kind: KeyEventKind::Press,
-            ..
-        }) = event
-        {
-            match code {
-                KeyCode::Char('t') if *modifiers == KeyModifiers::CONTROL => {
+    fn evaluate_event(&mut self, event: Event) -> Result<(), std::io::Error> {
+        match event {
+            Key(KeyEvent {
+                code,
+                modifiers,
+                kind: KeyEventKind::Press,
+                ..
+            }) => match (code, modifiers) {
+                (KeyCode::Char('t'), KeyModifiers::CONTROL) => {
                     // CTRL+t to quit
                     self.should_quit = true;
                 }
-                KeyCode::Up
-                | KeyCode::Down
-                | KeyCode::Left
-                | KeyCode::Right
-                | KeyCode::PageUp
-                | KeyCode::PageDown
-                | KeyCode::Home
-                | KeyCode::End => {
-                    self.move_point(*code)?;
+                (
+                    KeyCode::Up
+                    | KeyCode::Down
+                    | KeyCode::Left
+                    | KeyCode::Right
+                    | KeyCode::PageUp
+                    | KeyCode::PageDown
+                    | KeyCode::Home
+                    | KeyCode::End,
+                    _,
+                ) => {
+                    self.move_point(code)?;
                 }
                 _ => (),
+            },
+
+            Resize(width, height) => {
+                let (height, width) = (height as usize, width as usize);
+                self.view.resize(Size { height, width });
             }
+            _ => (),
         }
         Ok(())
     }
 
-    fn refresh_screen(&self) -> Result<(), std::io::Error> {
+    fn refresh_screen(&mut self) -> Result<(), std::io::Error> {
         Terminal::hide_caret()?;
         Terminal::move_caret_to(&Position::default())?;
 
