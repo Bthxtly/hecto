@@ -1,4 +1,4 @@
-use super::terminal::{Position, Size, Terminal};
+use super::terminal::{Size, Terminal};
 
 mod buffer;
 use buffer::Buffer;
@@ -18,21 +18,21 @@ impl View {
         self.needs_redraw = true;
     }
 
-    fn render_line(at: usize, line_text: &str) -> Result<(), std::io::Error> {
-        Terminal::move_caret_to(&Position { row: at, col: 0 })?;
-        Terminal::clear_line()?;
-        Terminal::print(line_text)?;
-        Ok(())
+    fn render_line(at: usize, line_text: &str) {
+        let result = Terminal::print_row(at, line_text);
+
+        // will ignore this in release build
+        debug_assert!(result.is_ok(), "Failed to render line");
     }
 
-    pub fn render(&mut self) -> Result<(), std::io::Error> {
+    pub fn render(&mut self) {
         if !self.needs_redraw {
-            return Ok(());
+            return;
         }
 
         let Size { height, width } = self.size;
         if height == 0 || width == 0 {
-            return Ok(());
+            return;
         }
 
         // we allow this since we don't care if our welcome message is put _exactly_ in the middle.
@@ -52,16 +52,9 @@ impl View {
                 // else render tilde at empty lines
                 Self::render_line(current_row, "~");
             }
-
-            // `current_row + 1` should not overflow, unless `height` is usize::MAX XD
-            #[allow(clippy::arithmetic_side_effects)]
-            if current_row + 1 < height {
-                Terminal::print("\r\n")?;
-            }
         }
 
         self.needs_redraw = false;
-        Ok(())
     }
 
     fn build_welcome_message(width: usize) -> String {

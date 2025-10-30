@@ -10,7 +10,7 @@ impl Buffer {
         Ok(Self {
             lines: read_to_string(filename)?
                 .lines()
-                .map(|line| String::from(line))
+                .map(String::from)
                 .collect(),
         })
     }

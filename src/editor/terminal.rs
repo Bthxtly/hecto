@@ -4,7 +4,7 @@ use crossterm::terminal::{
     Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode,
     enable_raw_mode, size,
 };
-use crossterm::{Command, execute, queue};
+use crossterm::{Command, queue};
 
 use std::io::{Write, stdout};
 
@@ -16,8 +16,8 @@ pub struct Size {
 
 #[derive(Default)]
 pub struct Position {
-    pub col: usize,
     pub row: usize,
+    pub col: usize,
 }
 
 /// Represents the Terminal.
@@ -110,6 +110,13 @@ impl Terminal {
 
     fn queue_command<T: Command>(command: T) -> Result<(), std::io::Error> {
         queue!(stdout(), command)?;
+        Ok(())
+    }
+
+    pub fn print_row(row: usize, line_text: &str) -> Result<(), std::io::Error> {
+        Self::move_caret_to(&Position { row, col: 0 })?;
+        Self::clear_line()?;
+        Self::print(line_text)?;
         Ok(())
     }
 }
