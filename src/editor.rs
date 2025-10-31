@@ -1,30 +1,24 @@
 use std::{
-    cmp::min,
     env,
     panic::{set_hook, take_hook},
 };
 
 use crossterm::event::{
-    Event::{self, Key, Resize},
-    KeyCode::{self},
-    KeyEvent, KeyEventKind, KeyModifiers, read,
+    Event::{self, Key},
+    KeyEvent, KeyEventKind, read,
 };
 
+mod editorcommand;
+
 mod terminal;
-use terminal::{Position, Size, Terminal};
+use editorcommand::EditorCommand;
+use terminal::Terminal;
 
 mod view;
 use view::View;
 
-#[derive(Default)]
-struct Location {
-    x: usize,
-    y: usize,
-}
-
 pub struct Editor {
     should_quit: bool,
-    location: Location,
     view: View,
 }
 
@@ -47,7 +41,6 @@ impl Editor {
 
         Ok(Self {
             should_quit: false,
-            location: Location::default(),
             view,
         })
     }
@@ -76,73 +69,38 @@ impl Editor {
         Ok(())
     }
 
-    fn move_point(&mut self, key_code: KeyCode) {
-        let Location { mut x, mut y } = self.location;
-        let Size { height, width } = Terminal::size().unwrap_or_default();
-        match key_code {
-            KeyCode::Up => {
-                y = y.saturating_sub(1);
-            }
-            KeyCode::Down => {
-                y = min(height.saturating_sub(1), y.saturating_add(1));
-            }
-            KeyCode::Left => {
-                x = x.saturating_sub(1);
-            }
-            KeyCode::Right => {
-                x = min(width.saturating_sub(1), x.saturating_add(1));
-            }
-            KeyCode::PageUp => {
-                y = 0;
-            }
-            KeyCode::PageDown => {
-                y = height.saturating_sub(1);
-            }
-            KeyCode::Home => {
-                x = 0;
-            }
-            KeyCode::End => {
-                x = width.saturating_sub(1);
-            }
-            _ => (),
-        }
-        self.location = Location { x, y };
-    }
-
     fn evaluate_event(&mut self, event: Event) -> Result<(), std::io::Error> {
-        match event {
-            Key(KeyEvent {
-                code,
-                modifiers,
-                kind: KeyEventKind::Press,
-                ..
-            }) => match (code, modifiers) {
-                (KeyCode::Char('t'), KeyModifiers::CONTROL) => {
-                    // CTRL+t to quit
-                    self.should_quit = true;
-                }
-                (
-                    KeyCode::Up
-                    | KeyCode::Down
-                    | KeyCode::Left
-                    | KeyCode::Right
-                    | KeyCode::PageUp
-                    | KeyCode::PageDown
-                    | KeyCode::Home
-                    | KeyCode::End,
-                    _,
-                ) => {
-                    self.move_point(code);
-                }
-                _ => (),
-            },
+        let should_process = match &event {
+            Key(KeyEvent { kind, .. }) => kind == &KeyEventKind::Press,
+            Event::Resize(_, _) => true,
+            _ => false,
+        };
 
-            Resize(width, height) => {
-                let (height, width) = (height as usize, width as usize);
-                self.view.resize(Size { height, width });
+        if should_process {
+            match EditorCommand::try_from(event) {
+                Ok(command) => {
+                    if matches!(command, EditorCommand::Quit) {
+                        self.should_quit = true;
+                    } else {
+                        self.view.handle_command(command);
+                    }
+                }
+                Err(err) => {
+                    #[cfg(debug_assertions)]
+                    {
+                        panic!("Could not handle command: {err}")
+                    };
+                }
             }
-            _ => (),
         }
+        // NOTE: this is too strict
+        // else {
+        //     #[cfg(debug_assertions)]
+        //     {
+        //         panic!("Received and discarded unsupported or non-press event.");
+        //     }
+        // }
+
         Ok(())
     }
 
@@ -150,10 +108,7 @@ impl Editor {
         let _ = Terminal::hide_caret();
 
         self.view.render();
-        let _ = Terminal::move_caret_to(&Position {
-            col: self.location.x,
-            row: self.location.y,
-        });
+        let _ = Terminal::move_caret_to(&self.view.get_position());
 
         let _ = Terminal::show_caret();
         let _ = Terminal::execute();

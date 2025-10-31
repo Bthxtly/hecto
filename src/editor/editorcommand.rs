@@ -36,6 +36,17 @@ impl TryFrom<Event> for EditorCommand {
                 (KeyCode::PageUp, _) => Ok(Self::Move(Direction::PageUp)),
                 (KeyCode::Home, _) => Ok(Self::Move(Direction::Home)),
                 (KeyCode::End, _) => Ok(Self::Move(Direction::End)),
+
+                (KeyCode::Char('h'), _) => Ok(Self::Move(Direction::Left)),
+                (KeyCode::Char('j'), _) => Ok(Self::Move(Direction::Down)),
+                (KeyCode::Char('k'), _) => Ok(Self::Move(Direction::Up)),
+                (KeyCode::Char('l'), _) => Ok(Self::Move(Direction::Right)),
+                (KeyCode::Char('^'), _) => Ok(Self::Move(Direction::Home)),
+                (KeyCode::Char('$'), _) => Ok(Self::Move(Direction::End)),
+                (KeyCode::Char('n'), KeyModifiers::CONTROL) => Ok(Self::Move(Direction::Down)),
+                (KeyCode::Char('p'), KeyModifiers::CONTROL) => Ok(Self::Move(Direction::Up)),
+                (KeyCode::Char('f'), KeyModifiers::CONTROL) => Ok(Self::Move(Direction::PageDown)),
+                (KeyCode::Char('b'), KeyModifiers::CONTROL) => Ok(Self::Move(Direction::PageUp)),
                 _ => Err(format!("Key Code not supported: {code:?}")),
             },
             Event::Resize(width, height) => {

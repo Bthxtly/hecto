@@ -1,7 +1,15 @@
-use super::terminal::{Size, Terminal};
+use super::{
+    editorcommand::{Direction, EditorCommand},
+    terminal::{Position, Size, Terminal},
+};
 
 mod buffer;
 use buffer::Buffer;
+
+mod location;
+use location::Location;
+
+mod line;
 
 const NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -10,19 +18,19 @@ pub struct View {
     buffer: Buffer,
     needs_redraw: bool,
     size: Size,
+    location: Location,
+    scroll_offset: Location,
 }
 
 impl View {
-    pub fn resize(&mut self, size: Size) {
-        self.size = size;
-        self.needs_redraw = true;
+    pub fn load(&mut self, filename: &str) {
+        if let Ok(buffer) = Buffer::load(filename) {
+            self.buffer = buffer;
+        }
     }
 
-    fn render_line(at: usize, line_text: &str) {
-        let result = Terminal::print_row(at, line_text);
-
-        // will ignore this in release build
-        debug_assert!(result.is_ok(), "Failed to render line");
+    pub fn get_position(&self) -> Position {
+        self.location.subtract(&self.scroll_offset).into()
     }
 
     pub fn render(&mut self) {
@@ -39,12 +47,14 @@ impl View {
         // it's allowed to be a bit up or down
         #[allow(clippy::integer_division)]
         let vertical_center = height / 3;
+        let top = self.scroll_offset.y;
 
         for current_row in 0..height {
-            if let Some(line) = self.buffer.lines.get(current_row) {
-                // render lines within screen width only
-                let truncated_line = line.get(0..width).unwrap_or(line);
-                Self::render_line(current_row, truncated_line);
+            if let Some(line) = self.buffer.lines.get(current_row.saturating_add(top)) {
+                let left = self.scroll_offset.x;
+                let right = self.scroll_offset.x.saturating_add(width);
+                let truncated_line = line.get(left..right);
+                Self::render_line(current_row, &truncated_line);
             } else if (current_row == vertical_center) && self.buffer.is_empty() {
                 // render welcome message if no file is opened
                 Self::render_line(current_row, &Self::build_welcome_message(width));
@@ -55,6 +65,13 @@ impl View {
         }
 
         self.needs_redraw = false;
+    }
+
+    fn render_line(at: usize, line_text: &str) {
+        let result = Terminal::print_row(at, line_text);
+
+        // will ignore this in release build
+        debug_assert!(result.is_ok(), "Failed to render line");
     }
 
     fn build_welcome_message(width: usize) -> String {
@@ -76,10 +93,77 @@ impl View {
         full_message
     }
 
-    pub fn load(&mut self, filename: &str) {
-        if let Ok(buffer) = Buffer::load(filename) {
-            self.buffer = buffer;
+    pub fn handle_command(&mut self, command: EditorCommand) {
+        match command {
+            EditorCommand::Resize(size) => self.resize(size),
+            EditorCommand::Move(direction) => self.move_text_location(direction),
+            EditorCommand::Quit => {}
         }
+    }
+
+    fn resize(&mut self, size: Size) {
+        self.size = size;
+        self.needs_redraw = true;
+    }
+
+    fn move_text_location(&mut self, direction: Direction) {
+        let Location { mut x, mut y } = self.location;
+        let Size { height, width } = self.size;
+        match direction {
+            Direction::Up => {
+                y = y.saturating_sub(1);
+            }
+            Direction::Down => {
+                y = y.saturating_add(1);
+            }
+            Direction::Left => {
+                x = x.saturating_sub(1);
+            }
+            Direction::Right => {
+                x = x.saturating_add(1);
+            }
+            Direction::PageUp => {
+                y = 0;
+            }
+            Direction::PageDown => {
+                y = height.saturating_sub(1);
+            }
+            Direction::Home => {
+                x = 0;
+            }
+            Direction::End => {
+                x = width.saturating_sub(1);
+            }
+        }
+        self.location = Location { x, y };
+
+        self.scroll_location_into_view();
+    }
+
+    fn scroll_location_into_view(&mut self) {
+        let Location { x, y } = self.location;
+        let Size { height, width } = self.size;
+        let mut offset_change = false;
+
+        // scroll vertically
+        if y < self.scroll_offset.y {
+            self.scroll_offset.y = y;
+            offset_change = true;
+        } else if y >= self.scroll_offset.y.saturating_add(height) {
+            self.scroll_offset.y = y.saturating_sub(height).saturating_add(1);
+            offset_change = true;
+        }
+
+        // scroll horizontally
+        if x < self.scroll_offset.x {
+            self.scroll_offset.x = x;
+            offset_change = true;
+        } else if x >= self.scroll_offset.x.saturating_add(width) {
+            self.scroll_offset.x = x.saturating_sub(width).saturating_add(1);
+            offset_change = true;
+        }
+
+        self.needs_redraw = offset_change;
     }
 }
 
@@ -89,6 +173,8 @@ impl Default for View {
             buffer: Buffer::default(),
             needs_redraw: true,
             size: Terminal::size().unwrap_or_default(),
+            location: Location::default(),
+            scroll_offset: Location::default(),
         }
     }
 }

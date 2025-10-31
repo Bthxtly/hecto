@@ -1,17 +1,16 @@
 use std::fs::read_to_string;
 
+use super::line::Line;
+
 #[derive(Default)]
 pub struct Buffer {
-    pub lines: Vec<String>,
+    pub lines: Vec<Line>,
 }
 
 impl Buffer {
     pub fn load(filename: &str) -> Result<Self, std::io::Error> {
         Ok(Self {
-            lines: read_to_string(filename)?
-                .lines()
-                .map(String::from)
-                .collect(),
+            lines: read_to_string(filename)?.lines().map(Line::from).collect(),
         })
     }
 
