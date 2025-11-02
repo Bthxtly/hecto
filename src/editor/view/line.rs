@@ -1,25 +1,30 @@
+use unicode_segmentation::UnicodeSegmentation;
+
 use std::cmp;
 use std::ops::Range;
 
 pub struct Line {
-    string: String,
+    graphemes: Vec<String>,
 }
 
 impl Line {
     pub fn from(line_str: &str) -> Self {
         Self {
-            string: String::from(line_str),
+            graphemes: line_str
+                .graphemes(true)
+                .map(|g| g.to_string())
+                .collect::<Vec<String>>(),
         }
     }
 
     pub fn get(&self, range: Range<usize>) -> String {
         let start = range.start;
-        let end = cmp::min(range.end, self.string.len());
+        let end = cmp::min(range.end, self.graphemes.len());
 
-        self.string.get(start..end).unwrap_or_default().to_string()
+        self.graphemes.get(start..end).unwrap_or_default().concat()
     }
 
     pub fn len(&self) -> usize {
-        self.string.len()
+        self.graphemes.len()
     }
 }
