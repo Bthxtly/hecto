@@ -1,30 +1,100 @@
 use unicode_segmentation::UnicodeSegmentation;
+use unicode_width::UnicodeWidthStr;
 
-use std::cmp;
 use std::ops::Range;
 
+enum GraphemeWidth {
+    Half,
+    Full,
+}
+
+impl GraphemeWidth {
+    const fn saturating_add(&self, other: usize) -> usize {
+        match self {
+            Self::Half => other.saturating_add(1),
+            Self::Full => other.saturating_add(2),
+        }
+    }
+}
+
+struct TextFragment {
+    grapheme: String,
+    rendered_width: GraphemeWidth,
+    replacement: Option<char>,
+}
+
 pub struct Line {
-    graphemes: Vec<String>,
+    fragments: Vec<TextFragment>,
 }
 
 impl Line {
     pub fn from(line_str: &str) -> Self {
-        Self {
-            graphemes: line_str
-                .graphemes(true)
-                .map(|g| g.to_string())
-                .collect::<Vec<String>>(),
-        }
+        let fragments = line_str
+            .graphemes(true)
+            .map(|grapheme| {
+                let unicode_width = grapheme.width();
+                let rendered_width = match unicode_width {
+                    0 | 1 => GraphemeWidth::Half,
+                    _ => GraphemeWidth::Full,
+                };
+
+                let replacement = match unicode_width {
+                    0 => Some('·'),
+                    _ => None,
+                };
+
+                TextFragment {
+                    grapheme: grapheme.to_string(),
+                    rendered_width,
+                    replacement,
+                }
+            })
+            .collect();
+
+        Self { fragments }
     }
 
-    pub fn get(&self, range: Range<usize>) -> String {
+    pub fn get_visible_graphemes(&self, range: Range<usize>) -> String {
         let start = range.start;
-        let end = cmp::min(range.end, self.graphemes.len());
+        let end = range.end;
 
-        self.graphemes.get(start..end).unwrap_or_default().concat()
+        let mut result = String::new();
+        let mut current_pos = 0;
+        for fragment in &self.fragments {
+            let fragment_end = fragment.rendered_width.saturating_add(current_pos);
+            if current_pos >= end {
+                break;
+            }
+
+            if fragment_end > start {
+                // edge case handling
+                if fragment_end > end || current_pos < start {
+                    result.push('⋯');
+                } else if let Some(char) = fragment.replacement {
+                    result.push(char);
+                } else {
+                    result.push_str(&fragment.grapheme);
+                }
+            }
+
+            current_pos = fragment_end;
+        }
+
+        result
     }
 
-    pub fn len(&self) -> usize {
-        self.graphemes.len()
+    pub fn grapheme_count(&self) -> usize {
+        self.fragments.len()
+    }
+
+    pub fn width_until(&self, grapheme_index: usize) -> usize {
+        self.fragments
+            .iter()
+            .take(grapheme_index)
+            .map(|fragment| match fragment.rendered_width {
+                GraphemeWidth::Half => 1,
+                GraphemeWidth::Full => 2,
+            })
+            .sum()
     }
 }
