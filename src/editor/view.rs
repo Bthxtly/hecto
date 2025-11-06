@@ -112,8 +112,9 @@ impl View {
 
     pub fn handle_command(&mut self, command: EditorCommand) {
         match command {
-            EditorCommand::Resize(size) => self.resize(size),
             EditorCommand::Move(direction) => self.move_text_location(direction),
+            EditorCommand::Resize(size) => self.resize(size),
+            EditorCommand::Insert(ch) => self.insert_char(ch),
             EditorCommand::Quit => {}
         }
     }
@@ -255,6 +256,27 @@ impl View {
         };
 
         self.needs_redraw = self.needs_redraw || offset_changed;
+    }
+
+    fn insert_char(&mut self, ch: char) {
+        let old_len = self
+            .buffer
+            .lines
+            .get(self.text_location.line_index)
+            .map_or(0, Line::grapheme_count);
+
+        self.buffer.insert_char(ch, &self.text_location);
+
+        let new_len = self
+            .buffer
+            .lines
+            .get(self.text_location.line_index)
+            .map_or(0, Line::grapheme_count);
+
+        if new_len.saturating_sub(old_len) > 0 {
+            self.move_right(1);
+        }
+        self.needs_redraw = true;
     }
 }
 

@@ -31,36 +31,36 @@ pub struct Line {
 
 impl Line {
     pub fn from(line_str: &str) -> Self {
-        let fragments = line_str
-            .graphemes(true)
-            .map(|grapheme| {
-                let (replacement, rendered_width) = Self::replacement_character(grapheme)
-                    .map_or_else(
-                        || {
-                            let unicode_width = grapheme.width();
-                            let rendered_width = match unicode_width {
-                                0 | 1 => GraphemeWidth::Half,
-                                _ => GraphemeWidth::Full,
-                            };
-                            (None, rendered_width)
-                        },
-                        |replacement| (Some(replacement), GraphemeWidth::Half),
-                    );
-
-                TextFragment {
-                    grapheme: grapheme.to_string(),
-                    rendered_width,
-                    replacement,
-                }
-            })
-            .collect();
-
+        let fragments = Self::str_to_fragments(line_str);
         Self { fragments }
+    }
+
+    fn str_to_fragments(line_str: &str) -> Vec<TextFragment> {
+        let grapheme_to_fragment = |grapheme: &str| {
+            let (replacement, rendered_width) = Self::replacement_character(grapheme).map_or_else(
+                || {
+                    let unicode_width = grapheme.width();
+                    let rendered_width = match unicode_width {
+                        0 | 1 => GraphemeWidth::Half,
+                        _ => GraphemeWidth::Full,
+                    };
+                    (None, rendered_width)
+                },
+                |replacement| (Some(replacement), GraphemeWidth::Half),
+            );
+
+            TextFragment {
+                grapheme: grapheme.to_string(),
+                rendered_width,
+                replacement,
+            }
+        };
+
+        line_str.graphemes(true).map(grapheme_to_fragment).collect()
     }
 
     fn replacement_character(for_str: &str) -> Option<char> {
         let width = for_str.width();
-        dbg!(for_str, width);
         match for_str {
             " " => None,
             "\t" => Some(' '),
@@ -113,5 +113,23 @@ impl Line {
                 GraphemeWidth::Full => 2,
             })
             .sum()
+    }
+
+    pub fn insert_char(&mut self, ch: char, grapheme_index: usize) {
+        let mut new_line = String::new();
+
+        for (index, fragment) in self.fragments.iter().enumerate() {
+            if index == grapheme_index {
+                new_line.push(ch);
+            }
+            new_line.push_str(&fragment.grapheme);
+        }
+
+        // insert at the end of line
+        if grapheme_index >= self.fragments.len() {
+            new_line.push(ch);
+        }
+
+        self.fragments = Self::str_to_fragments(&new_line);
     }
 }
