@@ -115,8 +115,10 @@ impl View {
             EditorCommand::Move(direction) => self.move_text_location(direction),
             EditorCommand::Resize(size) => self.resize(size),
             EditorCommand::Insert(ch) => self.insert_char(ch),
+            EditorCommand::Enter => self.insert_newline(),
+            EditorCommand::Tab => self.insert_tab(),
             EditorCommand::Delete => self.delete(),
-            EditorCommand::Backspace => self.backspace(),
+            EditorCommand::Backspace => self.delete_backward(),
             EditorCommand::Quit => {}
         }
     }
@@ -286,13 +288,23 @@ impl View {
         self.needs_redraw = true;
     }
 
-    fn backspace(&mut self) {
+    fn delete_backward(&mut self) {
         // do nothing if at top-left corner
         if self.text_location.line_index == 0 && self.text_location.grapheme_index == 0 {
             return;
         }
         self.move_text_location(Direction::Left);
         self.delete();
+    }
+
+    fn insert_tab(&mut self) {
+        self.insert_char('\t');
+    }
+
+    fn insert_newline(&mut self) {
+        self.buffer.insert_newline(&self.text_location);
+        self.move_text_location(Direction::Right);
+        self.needs_redraw = true;
     }
 }
 

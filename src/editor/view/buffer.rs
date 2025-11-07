@@ -46,4 +46,14 @@ impl Buffer {
             }
         }
     }
+
+    pub fn insert_newline(&mut self, at: &Location) {
+        if let Some(line) = self.lines.get_mut(at.line_index) {
+            let new_line = line.split(at.grapheme_index);
+            self.lines.insert(at.line_index.saturating_add(1), new_line);
+        } else {
+            // add a new line if at the bottom of the document
+            self.lines.push(Line::default());
+        }
+    }
 }

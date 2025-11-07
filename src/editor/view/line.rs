@@ -25,6 +25,7 @@ struct TextFragment {
     replacement: Option<char>,
 }
 
+#[derive(Default)]
 pub struct Line {
     fragments: Vec<TextFragment>,
 }
@@ -115,29 +116,29 @@ impl Line {
             .sum()
     }
 
-    pub fn insert_char(&mut self, ch: char, grapheme_index: usize) {
+    pub fn insert_char(&mut self, ch: char, at: usize) {
         let mut new_line = String::new();
 
         for (index, fragment) in self.fragments.iter().enumerate() {
-            if index == grapheme_index {
+            if index == at {
                 new_line.push(ch);
             }
             new_line.push_str(&fragment.grapheme);
         }
 
         // insert at the end of line
-        if grapheme_index >= self.fragments.len() {
+        if at >= self.fragments.len() {
             new_line.push(ch);
         }
 
         self.fragments = Self::str_to_fragments(&new_line);
     }
 
-    pub fn delete(&mut self, grapheme_index: usize) {
+    pub fn delete(&mut self, at: usize) {
         let mut new_line = String::new();
 
         for (index, fragment) in self.fragments.iter().enumerate() {
-            if index == grapheme_index {
+            if index == at {
                 continue;
             }
             new_line.push_str(&fragment.grapheme);
@@ -150,6 +151,13 @@ impl Line {
         let mut concat = self.to_string();
         concat.push_str(&other.to_string());
         self.fragments = Self::str_to_fragments(&concat)
+    }
+
+    pub fn split(&mut self, at: usize) -> Self {
+        let reminder = self.fragments.split_off(at);
+        Self {
+            fragments: reminder,
+        }
     }
 }
 
