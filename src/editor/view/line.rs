@@ -1,7 +1,7 @@
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
-use std::ops::Range;
+use std::{fmt, ops::Range};
 
 #[derive(Debug)]
 enum GraphemeWidth {
@@ -131,5 +131,36 @@ impl Line {
         }
 
         self.fragments = Self::str_to_fragments(&new_line);
+    }
+
+    pub fn delete(&mut self, grapheme_index: usize) {
+        let mut new_line = String::new();
+
+        for (index, fragment) in self.fragments.iter().enumerate() {
+            if index == grapheme_index {
+                continue;
+            }
+            new_line.push_str(&fragment.grapheme);
+        }
+
+        self.fragments = Self::str_to_fragments(&new_line);
+    }
+
+    pub fn append(&mut self, other: &Self) {
+        let mut concat = self.to_string();
+        concat.push_str(&other.to_string());
+        self.fragments = Self::str_to_fragments(&concat)
+    }
+}
+
+impl fmt::Display for Line {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
+        let result: String = self
+            .fragments
+            .iter()
+            .map(|fragment| fragment.grapheme.clone())
+            .collect();
+
+        write!(f, "{result}")
     }
 }

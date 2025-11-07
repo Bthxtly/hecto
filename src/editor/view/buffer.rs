@@ -30,4 +30,20 @@ impl Buffer {
             self.lines.push(Line::from(&ch.to_string()));
         };
     }
+
+    pub fn delete(&mut self, at: &Location) {
+        let height = self.height();
+        if let Some(line) = self.lines.get(at.line_index) {
+            if at.line_index < height.saturating_sub(1)
+                && at.grapheme_index == line.grapheme_count()
+            {
+                // join with the line below if at the end of line and there's line below
+                let next_line = self.lines.remove(at.line_index.saturating_add(1));
+                self.lines[at.line_index].append(&next_line);
+            } else if at.line_index < height {
+                // not at the end of the buffer
+                self.lines[at.line_index].delete(at.grapheme_index);
+            }
+        }
+    }
 }

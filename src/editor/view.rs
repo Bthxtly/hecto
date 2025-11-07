@@ -115,6 +115,8 @@ impl View {
             EditorCommand::Move(direction) => self.move_text_location(direction),
             EditorCommand::Resize(size) => self.resize(size),
             EditorCommand::Insert(ch) => self.insert_char(ch),
+            EditorCommand::Delete => self.delete(),
+            EditorCommand::Backspace => self.backspace(),
             EditorCommand::Quit => {}
         }
     }
@@ -274,9 +276,23 @@ impl View {
             .map_or(0, Line::grapheme_count);
 
         if new_len.saturating_sub(old_len) > 0 {
-            self.move_right(1);
+            self.move_text_location(Direction::Right);
         }
         self.needs_redraw = true;
+    }
+
+    fn delete(&mut self) {
+        self.buffer.delete(&self.text_location);
+        self.needs_redraw = true;
+    }
+
+    fn backspace(&mut self) {
+        // do nothing if at top-left corner
+        if self.text_location.line_index == 0 && self.text_location.grapheme_index == 0 {
+            return;
+        }
+        self.move_text_location(Direction::Left);
+        self.delete();
     }
 }
 
