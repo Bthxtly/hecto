@@ -28,7 +28,7 @@ impl Buffer {
             line.insert_char(ch, at.grapheme_index);
         } else {
             self.lines.push(Line::from(&ch.to_string()));
-        };
+        }
     }
 
     pub fn delete(&mut self, at: &Location) {

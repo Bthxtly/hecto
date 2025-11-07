@@ -65,7 +65,7 @@ impl Line {
         match for_str {
             " " => None,
             "\t" => Some(' '),
-            _ if for_str.chars().all(|char| char.is_control()) => Some('▯'),
+            _ if for_str.chars().all(char::is_control) => Some('▯'),
             _ if width > 0 && for_str.trim().is_empty() => Some('␣'),
             _ if width == 0 => Some('·'),
             _ => None,
@@ -150,7 +150,7 @@ impl Line {
     pub fn append(&mut self, other: &Self) {
         let mut concat = self.to_string();
         concat.push_str(&other.to_string());
-        self.fragments = Self::str_to_fragments(&concat)
+        self.fragments = Self::str_to_fragments(&concat);
     }
 
     pub fn split(&mut self, at: usize) -> Self {

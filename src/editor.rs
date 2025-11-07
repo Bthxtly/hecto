@@ -45,7 +45,7 @@ impl Editor {
         })
     }
 
-    pub fn run(&mut self) -> Result<(), std::io::Error> {
+    pub fn run(&mut self) {
         loop {
             self.refresh_screen();
             if self.should_quit {
@@ -54,7 +54,7 @@ impl Editor {
 
             match read() {
                 Ok(event) => {
-                    self.evaluate_event(event)?;
+                    self.evaluate_event(event);
                 }
                 Err(err) => {
                     // panic if something goes wrong in a Release build
@@ -66,10 +66,9 @@ impl Editor {
                 }
             }
         }
-        Ok(())
     }
 
-    fn evaluate_event(&mut self, event: Event) -> Result<(), std::io::Error> {
+    fn evaluate_event(&mut self, event: Event) {
         let should_process = match &event {
             Key(KeyEvent { kind, .. }) => kind == &KeyEventKind::Press,
             Event::Resize(_, _) => true,
@@ -85,15 +84,6 @@ impl Editor {
                 }
             }
         }
-        // NOTE: this is too strict
-        // else {
-        //     #[cfg(debug_assertions)]
-        //     {
-        //         panic!("Received and discarded unsupported or non-press event.");
-        //     }
-        // }
-
-        Ok(())
     }
 
     fn refresh_screen(&mut self) {

@@ -10,5 +10,5 @@ mod editor;
 use editor::Editor;
 
 fn main() {
-    let _ = Editor::new().unwrap().run();
+    Editor::new().unwrap().run();
 }

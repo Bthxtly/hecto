@@ -38,7 +38,6 @@ impl View {
     pub fn caret_position(&self) -> Position {
         self.text_location_to_position()
             .saturating_sub(&self.scroll_offset)
-            .into()
     }
 
     fn text_location_to_position(&self) -> Position {
@@ -112,7 +111,7 @@ impl View {
 
     pub fn handle_command(&mut self, command: EditorCommand) {
         match command {
-            EditorCommand::Move(direction) => self.move_text_location(direction),
+            EditorCommand::Move(direction) => self.move_text_location(&direction),
             EditorCommand::Resize(size) => self.resize(size),
             EditorCommand::Insert(ch) => self.insert_char(ch),
             EditorCommand::Enter => self.insert_newline(),
@@ -128,7 +127,7 @@ impl View {
         self.needs_redraw = true;
     }
 
-    fn move_text_location(&mut self, direction: Direction) {
+    fn move_text_location(&mut self, direction: &Direction) {
         let Size { height, .. } = self.size;
 
         // This match moves the positon, but does not check for all boundaries.
@@ -278,7 +277,7 @@ impl View {
             .map_or(0, Line::grapheme_count);
 
         if new_len.saturating_sub(old_len) > 0 {
-            self.move_text_location(Direction::Right);
+            self.move_text_location(&Direction::Right);
         }
         self.needs_redraw = true;
     }
@@ -293,7 +292,7 @@ impl View {
         if self.text_location.line_index == 0 && self.text_location.grapheme_index == 0 {
             return;
         }
-        self.move_text_location(Direction::Left);
+        self.move_text_location(&Direction::Left);
         self.delete();
     }
 
@@ -303,7 +302,7 @@ impl View {
 
     fn insert_newline(&mut self) {
         self.buffer.insert_newline(&self.text_location);
-        self.move_text_location(Direction::Right);
+        self.move_text_location(&Direction::Right);
         self.needs_redraw = true;
     }
 }
