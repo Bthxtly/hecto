@@ -1,6 +1,7 @@
 use std::cmp::min;
 
 use super::{
+    DocumentStatus,
     editorcommand::{Direction, EditorCommand},
     terminal::{Position, Size, Terminal},
 };
@@ -23,16 +24,25 @@ pub struct Location {
 pub struct View {
     buffer: Buffer,
     needs_redraw: bool,
+    bottom_margin: usize,
     size: Size,
     text_location: Location,
     scroll_offset: Position,
 }
 
 impl View {
-    pub fn load(&mut self, filename: &str) {
-        if let Ok(buffer) = Buffer::load(filename) {
-            self.buffer = buffer;
+    pub fn new(bottom_margin: usize) -> Self {
+        Self {
+            buffer: Buffer::default(),
+            needs_redraw: true,
+            size: Terminal::size().unwrap_or_default(),
+            bottom_margin,
+            text_location: Location::default(),
+            scroll_offset: Position::default(),
         }
+    }
+    pub fn load(&mut self, filename: &str) {
+        self.buffer = Buffer::load(filename);
     }
 
     pub fn caret_position(&self) -> Position {
@@ -65,7 +75,7 @@ impl View {
         let vertical_center = height / 3;
         let top = self.scroll_offset.row;
 
-        for current_row in 0..height {
+        for current_row in 0..height.saturating_sub(self.bottom_margin) {
             if let Some(line) = self.buffer.lines.get(current_row.saturating_add(top)) {
                 let left = self.scroll_offset.col;
                 let right = self.scroll_offset.col.saturating_add(width);
@@ -111,7 +121,7 @@ impl View {
 
     pub fn handle_command(&mut self, command: EditorCommand) {
         match command {
-            EditorCommand::Move(direction) => self.move_text_location(&direction),
+            EditorCommand::Move(direction) => self.move_text_location(direction),
             EditorCommand::Resize(size) => self.resize(size),
             EditorCommand::Insert(ch) => self.insert_char(ch),
             EditorCommand::Enter => self.insert_newline(),
@@ -128,7 +138,7 @@ impl View {
         self.needs_redraw = true;
     }
 
-    fn move_text_location(&mut self, direction: &Direction) {
+    fn move_text_location(&mut self, direction: Direction) {
         let Size { height, .. } = self.size;
 
         // This match moves the positon, but does not check for all boundaries.
@@ -278,7 +288,7 @@ impl View {
             .map_or(0, Line::grapheme_count);
 
         if new_len.saturating_sub(old_len) > 0 {
-            self.move_text_location(&Direction::Right);
+            self.move_text_location(Direction::Right);
         }
         self.needs_redraw = true;
     }
@@ -293,7 +303,7 @@ impl View {
         if self.text_location.line_index == 0 && self.text_location.grapheme_index == 0 {
             return;
         }
-        self.move_text_location(&Direction::Left);
+        self.move_text_location(Direction::Left);
         self.delete();
     }
 
@@ -303,23 +313,32 @@ impl View {
 
     fn insert_newline(&mut self) {
         self.buffer.insert_newline(&self.text_location);
-        self.move_text_location(&Direction::Right);
+        self.move_text_location(Direction::Right);
         self.needs_redraw = true;
     }
 
-    fn save(&self) {
+    fn save(&mut self) {
         let _ = self.buffer.save();
     }
-}
 
-impl Default for View {
-    fn default() -> Self {
-        Self {
-            buffer: Buffer::default(),
-            needs_redraw: true,
-            size: Terminal::size().unwrap_or_default(),
-            text_location: Location::default(),
-            scroll_offset: Position::default(),
+    pub fn get_status(&self) -> DocumentStatus {
+        DocumentStatus {
+            total_lines: self.buffer.height(),
+            current_line_index: self.text_location.line_index,
+            is_modified: self.buffer.dirty,
+            filename: self.buffer.filename.clone(),
         }
     }
 }
+
+// impl Default for View {
+//     fn default() -> Self {
+//         Self {
+//             buffer: Buffer::default(),
+//             needs_redraw: true,
+//             size: Terminal::size().unwrap_or_default(),
+//             text_location: Location::default(),
+//             scroll_offset: Position::default(),
+//         }
+//     }
+// }

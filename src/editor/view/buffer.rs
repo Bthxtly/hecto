@@ -9,22 +9,25 @@ use super::line::Line;
 pub struct Buffer {
     pub filename: Option<String>,
     pub lines: Vec<Line>,
+    pub dirty: bool,
 }
 
 impl Buffer {
-    pub fn load(filename: &str) -> Result<Self, std::io::Error> {
+    pub fn load(filename: &str) -> Self {
         if let Ok(string) = read_to_string(filename) {
             let lines = string.lines().map(Line::from).collect();
-            Ok(Self {
+            Self {
                 filename: Some(filename.to_string()),
                 lines,
-            })
+                dirty: false,
+            }
         } else {
             // open as an empty file if file doesn't exist
-            Ok(Self {
+            Self {
                 filename: Some(filename.to_string()),
                 lines: vec![Line::default()],
-            })
+                dirty: true,
+            }
         }
     }
 
@@ -42,6 +45,7 @@ impl Buffer {
         } else {
             self.lines.push(Line::from(&ch.to_string()));
         }
+        self.dirty = true;
     }
 
     pub fn delete(&mut self, at: &Location) {
@@ -57,6 +61,7 @@ impl Buffer {
                 // not at the end of the buffer
                 self.lines[at.line_index].delete(at.grapheme_index);
             }
+            self.dirty = true;
         }
     }
 
@@ -68,14 +73,16 @@ impl Buffer {
             // add a new line if at the bottom of the document
             self.lines.push(Line::default());
         }
+        self.dirty = true;
     }
 
-    pub fn save(&self) -> Result<(), std::io::Error> {
+    pub fn save(&mut self) -> Result<(), std::io::Error> {
         if let Some(filename) = &self.filename {
             let mut file = File::create(filename)?;
             for line in &self.lines {
                 writeln!(file, "{line}")?;
             }
+            self.dirty = false;
         }
 
         Ok(())

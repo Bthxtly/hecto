@@ -8,7 +8,7 @@ use crossterm::{Command, queue};
 
 use std::io::{Write, stdout};
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct Size {
     pub height: usize,
     pub width: usize,
