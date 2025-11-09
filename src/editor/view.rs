@@ -118,6 +118,7 @@ impl View {
             EditorCommand::Tab => self.insert_tab(),
             EditorCommand::Delete => self.delete(),
             EditorCommand::Backspace => self.delete_backward(),
+            EditorCommand::Save => self.save(),
             EditorCommand::Quit => {}
         }
     }
@@ -304,6 +305,10 @@ impl View {
         self.buffer.insert_newline(&self.text_location);
         self.move_text_location(&Direction::Right);
         self.needs_redraw = true;
+    }
+
+    fn save(&self) {
+        let _ = self.buffer.save();
     }
 }
 

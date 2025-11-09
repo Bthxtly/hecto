@@ -1,18 +1,31 @@
+use std::fs::File;
 use std::fs::read_to_string;
+use std::io::Write;
 
 use super::Location;
 use super::line::Line;
 
 #[derive(Default)]
 pub struct Buffer {
+    pub filename: Option<String>,
     pub lines: Vec<Line>,
 }
 
 impl Buffer {
     pub fn load(filename: &str) -> Result<Self, std::io::Error> {
-        Ok(Self {
-            lines: read_to_string(filename)?.lines().map(Line::from).collect(),
-        })
+        if let Ok(string) = read_to_string(filename) {
+            let lines = string.lines().map(Line::from).collect();
+            Ok(Self {
+                filename: Some(filename.to_string()),
+                lines,
+            })
+        } else {
+            // open as an empty file if file doesn't exist
+            Ok(Self {
+                filename: Some(filename.to_string()),
+                lines: vec![Line::default()],
+            })
+        }
     }
 
     pub fn is_empty(&self) -> bool {
@@ -55,5 +68,16 @@ impl Buffer {
             // add a new line if at the bottom of the document
             self.lines.push(Line::default());
         }
+    }
+
+    pub fn save(&self) -> Result<(), std::io::Error> {
+        if let Some(filename) = &self.filename {
+            let mut file = File::create(filename)?;
+            for line in &self.lines {
+                writeln!(file, "{line}")?;
+            }
+        }
+
+        Ok(())
     }
 }
