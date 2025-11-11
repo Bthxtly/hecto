@@ -11,11 +11,13 @@ use crossterm::event::{
 mod documentstatus;
 mod editorcommand;
 mod fileinfo;
+mod messagebar;
 mod statusbar;
 mod terminal;
 mod view;
 
 use editorcommand::EditorCommand;
+use messagebar::MessageBar;
 use statusbar::StatusBar;
 use terminal::Terminal;
 use view::View;
@@ -27,6 +29,7 @@ pub struct Editor {
     should_quit: bool,
     view: View,
     status_bar: StatusBar,
+    message_bar: MessageBar,
     title: String,
 }
 
@@ -45,6 +48,7 @@ impl Editor {
             should_quit: false,
             view: View::new(2),
             status_bar: StatusBar::new(1),
+            message_bar: MessageBar::default(),
             title: String::new(),
         };
 
@@ -54,6 +58,9 @@ impl Editor {
         }
 
         editor.refresh_status();
+        editor
+            .message_bar
+            .update_message("HELP: Ctrl-S = Save | Ctrl-T = Quit".to_string());
 
         Ok(editor)
     }
@@ -110,6 +117,7 @@ impl Editor {
                     self.view.handle_command(command);
                     if let EditorCommand::Resize(size) = command {
                         self.status_bar.resize(size);
+                        self.message_bar.resize(size);
                     }
                 }
             }
@@ -121,6 +129,7 @@ impl Editor {
 
         self.view.render();
         self.status_bar.render();
+        self.message_bar.render();
         let _ = Terminal::move_caret_to(&self.view.caret_position());
 
         let _ = Terminal::show_caret();

@@ -1,5 +1,3 @@
-use std::fmt::Write as _;
-
 use super::{
     documentstatus::DocumentStatus,
     terminal::{Size, Terminal},
@@ -20,7 +18,7 @@ impl StatusBar {
         let mut status_bar = Self {
             current_status: DocumentStatus::default(),
             needs_redraw: true,
-            bottom_margin: 1,
+            bottom_margin,
             width: size.width,
             position_y: 0,
             is_visible: false,
