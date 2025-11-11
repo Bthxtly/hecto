@@ -1,7 +1,8 @@
 use std::cmp::min;
 
 use super::{
-    DocumentStatus,
+    NAME, VERSION,
+    documentstatus::DocumentStatus,
     editorcommand::{Direction, EditorCommand},
     terminal::{Position, Size, Terminal},
 };
@@ -11,9 +12,6 @@ use buffer::Buffer;
 
 mod line;
 use line::Line;
-
-const NAME: &str = env!("CARGO_PKG_NAME");
-const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Default)]
 pub struct Location {
@@ -60,7 +58,7 @@ impl View {
     }
 
     pub fn render(&mut self) {
-        if !self.needs_redraw {
+        if !self.needs_redraw || self.size.height == 0 {
             return;
         }
 
@@ -101,22 +99,19 @@ impl View {
     }
 
     fn build_welcome_message(width: usize) -> String {
+        if width == 0 {
+            return String::new();
+        }
+
         let welcome_message = format!("{NAME} editor -- version {VERSION}");
 
         let len = welcome_message.len();
-        if width <= len {
+        let remaining_width = width.saturating_sub(1);
+        if remaining_width <= len {
             return "~".to_string();
         }
 
-        // we allow this since we don't care if our welcome message is put _exactly_ in the middle.
-        // it's allowed to be a bit to the left or right.
-        #[allow(clippy::integer_division)]
-        let padding = (width.saturating_sub(len).saturating_sub(1)) / 2;
-
-        let mut full_message = format!("~{}{}", " ".repeat(padding), welcome_message);
-        full_message.truncate(width);
-
-        full_message
+        format!("{:<1}{:^remaining_width$}", "~", welcome_message)
     }
 
     pub fn handle_command(&mut self, command: EditorCommand) {
@@ -134,7 +129,10 @@ impl View {
     }
 
     fn resize(&mut self, size: Size) {
-        self.size = size;
+        self.size = Size {
+            width: size.width,
+            height: size.height.saturating_sub(self.bottom_margin),
+        };
         self.needs_redraw = true;
     }
 
@@ -326,19 +324,7 @@ impl View {
             total_lines: self.buffer.height(),
             current_line_index: self.text_location.line_index,
             is_modified: self.buffer.dirty,
-            filename: self.buffer.filename.clone(),
+            filename: format!("{}", self.buffer.file_info),
         }
     }
 }
-
-// impl Default for View {
-//     fn default() -> Self {
-//         Self {
-//             buffer: Buffer::default(),
-//             needs_redraw: true,
-//             size: Terminal::size().unwrap_or_default(),
-//             text_location: Location::default(),
-//             scroll_offset: Position::default(),
-//         }
-//     }
-// }

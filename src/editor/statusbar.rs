@@ -1,7 +1,7 @@
 use std::fmt::Write as _;
 
 use super::{
-    DocumentStatus,
+    documentstatus::DocumentStatus,
     terminal::{Size, Terminal},
 };
 
@@ -11,71 +11,62 @@ pub struct StatusBar {
     bottom_margin: usize,
     width: usize,
     position_y: usize,
+    is_visible: bool,
 }
 
 impl StatusBar {
     pub fn new(bottom_margin: usize) -> Self {
         let size = Terminal::size().unwrap_or_default();
-        Self {
+        let mut status_bar = Self {
             current_status: DocumentStatus::default(),
             needs_redraw: true,
             bottom_margin: 1,
             width: size.width,
-            position_y: size.height.saturating_sub(bottom_margin).saturating_sub(1),
-        }
+            position_y: 0,
+            is_visible: false,
+        };
+        status_bar.resize(size);
+
+        status_bar
     }
 
     pub fn render(&mut self) {
-        let DocumentStatus {
-            total_lines,
-            current_line_index,
-            is_modified,
-            filename,
-        } = &self.current_status;
-
-        // left
-        let mut line_text_left = String::new();
-        if let Some(filename) = filename {
-            let _ = write!(line_text_left, "{filename} ");
+        if !self.needs_redraw || !self.is_visible {
+            return;
         }
 
-        if *is_modified {
-            line_text_left.push_str("[+] ");
+        if let Ok(size) = Terminal::size() {
+            // left
+            let filename = &self.current_status.filename;
+            let line_count = &self.current_status.line_count_to_string();
+            let modified_indicator = &self.current_status.modified_indicator_to_string();
+            let beginning = if modified_indicator.is_empty() {
+                format!("{filename} - {line_count}")
+            } else {
+                format!("{filename} {modified_indicator} - {line_count}")
+            };
+
+            // right
+            let position_indicator = &self.current_status.position_indicator_to_string();
+
+            // cat
+            let remainder_width = size.width.saturating_sub(beginning.len());
+            let status = format!("{beginning}{position_indicator:>remainder_width$}");
+
+            // Only print out the status if it fits.
+            // Otherwise write out an empty string to ensure the row is cleared.
+            let to_print = if status.len() <= size.width {
+                status
+            } else {
+                String::new()
+            };
+
+            let result = Terminal::print_inverted_row(self.position_y, &to_print);
+            // will ignore this in release build
+            debug_assert!(result.is_ok(), "Failed to render line");
+
+            self.needs_redraw = false;
         }
-
-        // right
-        let line_text_right = format!(
-            "Ln {} of {}",
-            current_line_index.saturating_add(1),
-            total_lines
-        );
-
-        // cat
-        let left_len = line_text_left.len();
-        let right_len = line_text_right.len();
-        let mut line_text = String::new();
-
-        if left_len.saturating_add(right_len) > self.width {
-            line_text_left.truncate(self.width);
-            line_text.push_str(&line_text_left);
-        } else {
-            #[allow(clippy::arithmetic_side_effects)]
-            let padding = self.width - line_text_left.len() - line_text_right.len();
-
-            let _ = write!(
-                line_text,
-                "{}{}{}",
-                line_text_left,
-                " ".repeat(padding),
-                line_text_right
-            );
-        }
-
-        let result = Terminal::print_row(self.position_y, &line_text);
-        // will ignore this in release build
-        debug_assert!(result.is_ok(), "Failed to render line");
-
-        self.needs_redraw = false;
     }
 
     pub fn update_status(&mut self, status: DocumentStatus) {
@@ -87,10 +78,20 @@ impl StatusBar {
 
     pub fn resize(&mut self, size: Size) {
         self.width = size.width;
-        self.position_y = size
+
+        let mut position_y = 0;
+        let mut is_visible = false;
+        if let Some(result) = size
             .height
-            .saturating_sub(self.bottom_margin)
-            .saturating_sub(1);
+            .checked_sub(self.bottom_margin)
+            .and_then(|result| result.checked_sub(1))
+        {
+            position_y = result;
+            is_visible = true;
+        }
+
+        self.position_y = position_y;
+        self.is_visible = is_visible;
         self.needs_redraw = true;
     }
 }
