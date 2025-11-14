@@ -5,13 +5,13 @@ use super::{
     documentstatus::DocumentStatus,
     editorcommand::{Direction, EditorCommand},
     terminal::{Position, Size, Terminal},
+    uicomponent::UIComponent,
 };
+use buffer::Buffer;
+use line::Line;
 
 mod buffer;
-use buffer::Buffer;
-
 mod line;
-use line::Line;
 
 #[derive(Default)]
 pub struct Location {
@@ -19,6 +19,7 @@ pub struct Location {
     pub line_index: usize,
 }
 
+#[derive(Default)]
 pub struct View {
     buffer: Buffer,
     needs_redraw: bool,
@@ -28,16 +29,6 @@ pub struct View {
 }
 
 impl View {
-    pub fn new(bottom_margin: usize) -> Self {
-        Self {
-            buffer: Buffer::default(),
-            needs_redraw: true,
-            size: Terminal::size().unwrap_or_default(),
-            bottom_margin,
-            text_location: Location::default(),
-            scroll_offset: Position::default(),
-        }
-    }
     pub fn load(&mut self, filename: &str) {
         self.buffer = Buffer::load(filename);
     }
@@ -56,45 +47,9 @@ impl View {
         Position { row, col }
     }
 
-    pub fn render(&mut self) {
-        if !self.needs_redraw || self.size.height == 0 {
-            return;
-        }
-
-        let Size { height, width } = self.size;
-        if height == 0 || width == 0 {
-            return;
-        }
-
-        // we allow this since we don't care if our welcome message is put _exactly_ in the middle.
-        // it's allowed to be a bit up or down
-        #[allow(clippy::integer_division)]
-        let vertical_center = height / 3;
-        let top = self.scroll_offset.row;
-
-        for current_row in 0..height.saturating_sub(self.bottom_margin) {
-            if let Some(line) = self.buffer.lines.get(current_row.saturating_add(top)) {
-                let left = self.scroll_offset.col;
-                let right = self.scroll_offset.col.saturating_add(width);
-                let truncated_line = line.get_visible_graphemes(left..right);
-                Self::render_line(current_row, &truncated_line);
-            } else if (current_row == vertical_center) && self.buffer.is_empty() {
-                // render welcome message if no file is opened
-                Self::render_line(current_row, &Self::build_welcome_message(width));
-            } else {
-                // else render tilde at empty lines
-                Self::render_line(current_row, "~");
-            }
-        }
-
-        self.needs_redraw = false;
-    }
-
-    fn render_line(at: usize, line_text: &str) {
-        let result = Terminal::print_row(at, line_text);
-
-        // will ignore this in release build
-        debug_assert!(result.is_ok(), "Failed to render line");
+    fn render_line(at: usize, line_text: &str) -> Result<(), std::io::Error> {
+        Terminal::print_row(at, line_text)?;
+        Ok(())
     }
 
     fn build_welcome_message(width: usize) -> String {
@@ -240,7 +195,9 @@ impl View {
             false
         };
 
-        self.needs_redraw = self.needs_redraw || offset_changed;
+        if !self.needs_redraw() {
+            self.set_needs_redraw(offset_changed);
+        }
     }
 
     fn scroll_horizontally(&mut self, to: usize) {
@@ -257,7 +214,9 @@ impl View {
             false
         };
 
-        self.needs_redraw = self.needs_redraw || offset_changed;
+        if !self.needs_redraw() {
+            self.set_needs_redraw(offset_changed);
+        }
     }
 
     fn insert_char(&mut self, ch: char) {
@@ -278,12 +237,12 @@ impl View {
         if new_len.saturating_sub(old_len) > 0 {
             self.move_text_location(Direction::Right);
         }
-        self.needs_redraw = true;
+        self.set_needs_redraw(true);
     }
 
     fn delete(&mut self) {
         self.buffer.delete(&self.text_location);
-        self.needs_redraw = true;
+        self.set_needs_redraw(true);
     }
 
     fn delete_backward(&mut self) {
@@ -302,7 +261,7 @@ impl View {
     fn insert_newline(&mut self) {
         self.buffer.insert_newline(&self.text_location);
         self.move_text_location(Direction::Right);
-        self.needs_redraw = true;
+        self.set_needs_redraw(true);
     }
 
     fn save(&mut self) {
@@ -316,5 +275,54 @@ impl View {
             is_modified: self.buffer.dirty,
             filename: format!("{}", self.buffer.file_info),
         }
+    }
+}
+
+impl UIComponent for View {
+    fn set_needs_redraw(&mut self, value: bool) {
+        self.needs_redraw = value;
+    }
+
+    fn needs_redraw(&self) -> bool {
+        self.needs_redraw
+    }
+
+    fn set_size(&mut self, size: Size) {
+        self.size = size;
+        self.scroll_text_location_into_view();
+    }
+
+    fn draw(&mut self, origin_y: usize) -> Result<(), std::io::Error> {
+        let Size { height, width } = self.size;
+        let end_y = origin_y.saturating_add(height);
+
+        // we allow this since we don't care if our welcome message is put _exactly_ in the middle.
+        // it's allowed to be a bit up or down
+        #[allow(clippy::integer_division)]
+        let vertical_center = height / 3;
+        let scroll_top = self.scroll_offset.row;
+
+        for current_row in origin_y..end_y {
+            // to get the correct line index, we have to take current_row (the absolute row on
+            // screen), subtract origin_y to get the current row relative to the view (ranging from
+            // 0 to self.size.height) and add the scroll offset
+            let line_idx = current_row
+                .saturating_sub(origin_y)
+                .saturating_add(scroll_top);
+            if let Some(line) = self.buffer.lines.get(line_idx) {
+                let left = self.scroll_offset.col;
+                let right = self.scroll_offset.col.saturating_add(width);
+                let truncated_line = &line.get_visible_graphemes(left..right);
+                Self::render_line(current_row, truncated_line)?;
+            } else if (current_row == vertical_center) && self.buffer.is_empty() {
+                // render welcome message if no file is opened
+                Self::render_line(current_row, &Self::build_welcome_message(width))?;
+            } else {
+                // else render tilde at empty lines
+                Self::render_line(current_row, "~")?;
+            }
+        }
+
+        Ok(())
     }
 }

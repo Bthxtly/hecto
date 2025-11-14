@@ -1,8 +1,10 @@
 use super::{
     documentstatus::DocumentStatus,
     terminal::{Size, Terminal},
+    uicomponent::UIComponent,
 };
 
+#[derive(Default)]
 pub struct StatusBar {
     current_status: DocumentStatus,
     needs_redraw: bool,
@@ -10,26 +12,28 @@ pub struct StatusBar {
 }
 
 impl StatusBar {
-    pub fn new(bottom_margin: usize) -> Self {
-        let size = Terminal::size().unwrap_or_default();
-        let mut status_bar = Self {
-            current_status: DocumentStatus::default(),
-            needs_redraw: true,
-            bottom_margin,
-            width: size.width,
-            position_y: 0,
-            is_visible: false,
-        };
-        status_bar.resize(size);
+    pub fn update_status(&mut self, status: DocumentStatus) {
+        if self.current_status != status {
+            self.current_status = status;
+            self.set_needs_redraw(true);
+        }
+    }
+}
 
-        status_bar
+impl UIComponent for StatusBar {
+    fn set_needs_redraw(&mut self, value: bool) {
+        self.needs_redraw = value;
     }
 
-    pub fn render(&mut self) {
-        if !self.needs_redraw || !self.is_visible {
-            return;
-        }
+    fn needs_redraw(&self) -> bool {
+        self.needs_redraw
+    }
 
+    fn set_size(&mut self, size: Size) {
+        self.size = size;
+    }
+
+    fn draw(&mut self, origin_y: usize) -> Result<(), std::io::Error> {
         if let Ok(size) = Terminal::size() {
             // left
             let filename = &self.current_status.filename;
@@ -56,22 +60,13 @@ impl StatusBar {
                 String::new()
             };
 
-            let result = Terminal::print_inverted_row(self.position_y, &to_print);
+            let result = Terminal::print_inverted_row(origin_y, &to_print);
             // will ignore this in release build
             debug_assert!(result.is_ok(), "Failed to render line");
 
-            self.needs_redraw = false;
-        }
-    }
-
-    pub fn update_status(&mut self, status: DocumentStatus) {
-        if self.current_status != status {
-            self.current_status = status;
-            self.needs_redraw = true;
-        }
-    }
-
+            self.set_needs_redraw(false);
         }
 
+        Ok(())
     }
 }

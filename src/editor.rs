@@ -14,17 +14,20 @@ mod fileinfo;
 mod messagebar;
 mod statusbar;
 mod terminal;
+mod uicomponent;
 mod view;
 
 use editorcommand::EditorCommand;
 use messagebar::MessageBar;
 use statusbar::StatusBar;
-use terminal::Terminal;
+use terminal::{Size, Terminal};
+use uicomponent::UIComponent;
 use view::View;
 
 pub const NAME: &str = env!("CARGO_PKG_NAME");
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+#[derive(Default)]
 pub struct Editor {
     should_quit: bool,
     view: View,
@@ -136,6 +139,10 @@ impl Editor {
     }
 
     fn refresh_screen(&mut self) {
+        if self.terminal_size.height == 0 || self.terminal_size.width == 0 {
+            return;
+        }
+
         let _ = Terminal::hide_caret();
 
         let height = self.terminal_size.height;
@@ -147,6 +154,7 @@ impl Editor {
             self.view.render(0);
         }
 
+        let _ = Terminal::move_caret_to(&self.view.caret_position());
         let _ = Terminal::show_caret();
         let _ = Terminal::execute();
     }
