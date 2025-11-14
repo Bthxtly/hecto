@@ -30,6 +30,7 @@ pub struct Editor {
     view: View,
     status_bar: StatusBar,
     message_bar: MessageBar,
+    terminal_size: Size,
     title: String,
 }
 
@@ -44,13 +45,9 @@ impl Editor {
 
         Terminal::initialize()?;
 
-        let mut editor = Self {
-            should_quit: false,
-            view: View::new(2),
-            status_bar: StatusBar::new(1),
-            message_bar: MessageBar::default(),
-            title: String::new(),
-        };
+        let mut editor = Self::default();
+        let size = Terminal::size().unwrap_or_default();
+        editor.resize(size);
 
         let args: Vec<String> = env::args().collect();
         if let Some(filename) = args.get(1) {
@@ -63,6 +60,22 @@ impl Editor {
             .update_message("HELP: Ctrl-S = Save | Ctrl-T = Quit".to_string());
 
         Ok(editor)
+    }
+
+    fn resize(&mut self, size: Size) {
+        self.terminal_size = size;
+        self.view.resize(Size {
+            height: size.height.saturating_sub(2),
+            width: size.width,
+        });
+        self.status_bar.resize(Size {
+            height: 1,
+            width: size.width,
+        });
+        self.message_bar.resize(Size {
+            height: 1,
+            width: size.width,
+        });
     }
 
     fn refresh_status(&mut self) {
@@ -113,12 +126,10 @@ impl Editor {
             if let Ok(command) = EditorCommand::try_from(event) {
                 if matches!(command, EditorCommand::Quit) {
                     self.should_quit = true;
+                } else if let EditorCommand::Resize(size) = command {
+                    self.resize(size);
                 } else {
                     self.view.handle_command(command);
-                    if let EditorCommand::Resize(size) = command {
-                        self.status_bar.resize(size);
-                        self.message_bar.resize(size);
-                    }
                 }
             }
         }
@@ -127,10 +138,14 @@ impl Editor {
     fn refresh_screen(&mut self) {
         let _ = Terminal::hide_caret();
 
-        self.view.render();
-        self.status_bar.render();
-        self.message_bar.render();
-        let _ = Terminal::move_caret_to(&self.view.caret_position());
+        let height = self.terminal_size.height;
+        self.message_bar.render(height.saturating_sub(1));
+        if height > 1 {
+            self.status_bar.render(height.saturating_sub(2));
+        }
+        if height > 2 {
+            self.view.render(0);
+        }
 
         let _ = Terminal::show_caret();
         let _ = Terminal::execute();

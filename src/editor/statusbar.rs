@@ -6,10 +6,7 @@ use super::{
 pub struct StatusBar {
     current_status: DocumentStatus,
     needs_redraw: bool,
-    bottom_margin: usize,
-    width: usize,
-    position_y: usize,
-    is_visible: bool,
+    size: Size,
 }
 
 impl StatusBar {
@@ -74,22 +71,7 @@ impl StatusBar {
         }
     }
 
-    pub fn resize(&mut self, size: Size) {
-        self.width = size.width;
-
-        let mut position_y = 0;
-        let mut is_visible = false;
-        if let Some(result) = size
-            .height
-            .checked_sub(self.bottom_margin)
-            .and_then(|result| result.checked_sub(1))
-        {
-            position_y = result;
-            is_visible = true;
         }
 
-        self.position_y = position_y;
-        self.is_visible = is_visible;
-        self.needs_redraw = true;
     }
 }

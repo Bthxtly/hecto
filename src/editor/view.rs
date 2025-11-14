@@ -22,7 +22,6 @@ pub struct Location {
 pub struct View {
     buffer: Buffer,
     needs_redraw: bool,
-    bottom_margin: usize,
     size: Size,
     text_location: Location,
     scroll_offset: Position,
@@ -117,23 +116,14 @@ impl View {
     pub fn handle_command(&mut self, command: EditorCommand) {
         match command {
             EditorCommand::Move(direction) => self.move_text_location(direction),
-            EditorCommand::Resize(size) => self.resize(size),
             EditorCommand::Insert(ch) => self.insert_char(ch),
             EditorCommand::Enter => self.insert_newline(),
             EditorCommand::Tab => self.insert_tab(),
             EditorCommand::Delete => self.delete(),
             EditorCommand::Backspace => self.delete_backward(),
             EditorCommand::Save => self.save(),
-            EditorCommand::Quit => {}
+            EditorCommand::Quit | EditorCommand::Resize(_) => {}
         }
-    }
-
-    fn resize(&mut self, size: Size) {
-        self.size = Size {
-            width: size.width,
-            height: size.height.saturating_sub(self.bottom_margin),
-        };
-        self.needs_redraw = true;
     }
 
     fn move_text_location(&mut self, direction: Direction) {

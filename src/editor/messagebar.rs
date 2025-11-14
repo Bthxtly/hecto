@@ -4,8 +4,6 @@ use super::terminal::Size;
 
 pub struct MessageBar {
     current_message: String,
-    width: usize,
-    position_y: usize,
     needs_redraw: bool,
 }
 
@@ -34,10 +32,6 @@ impl MessageBar {
         }
     }
 
-    pub fn resize(&mut self, size: Size) {
-        self.width = size.width;
-        self.position_y = size.height.saturating_sub(1);
-        self.needs_redraw = true;
     }
 }
 
