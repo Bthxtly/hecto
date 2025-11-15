@@ -27,6 +27,8 @@ use view::View;
 pub const NAME: &str = env!("CARGO_PKG_NAME");
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+const QUIT_TIMES: u8 = 3;
+
 #[derive(Default)]
 pub struct Editor {
     should_quit: bool,
@@ -35,6 +37,7 @@ pub struct Editor {
     message_bar: MessageBar,
     terminal_size: Size,
     title: String,
+    quit_times: u8,
 }
 
 impl Editor {
@@ -134,10 +137,23 @@ impl Editor {
 
     fn process_command(&mut self, command: EditorCommand) {
         match command {
-            EditorCommand::Quit => self.should_quit = true,
+            EditorCommand::Quit => self.handle_quit(),
             EditorCommand::Save => self.handle_save(),
             EditorCommand::Resize(size) => self.resize(size),
             _ => self.view.handle_command(command),
+        }
+    }
+
+    fn handle_quit(&mut self) {
+        let is_modified = self.view.get_status().is_modified;
+        if !is_modified || self.quit_times.saturating_add(1) == QUIT_TIMES {
+            self.should_quit = true;
+        } else if is_modified {
+            self.message_bar.update_message(format!(
+                "WARNING!!! File has unsaved changes. Press Ctrl-T {} more times to quit.",
+                QUIT_TIMES - self.quit_times - 1
+            ));
+            self.quit_times += 1;
         }
     }
 
