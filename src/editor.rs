@@ -127,15 +127,26 @@ impl Editor {
 
         if should_process {
             if let Ok(command) = EditorCommand::try_from(event) {
-                if matches!(command, EditorCommand::Quit) {
-                    self.should_quit = true;
-                } else if let EditorCommand::Resize(size) = command {
-                    self.resize(size);
-                } else {
-                    self.view.handle_command(command);
-                }
+                self.process_command(command);
             }
         }
+    }
+
+    fn process_command(&mut self, command: EditorCommand) {
+        match command {
+            EditorCommand::Quit => self.should_quit = true,
+            EditorCommand::Save => self.handle_save(),
+            EditorCommand::Resize(size) => self.resize(size),
+            _ => self.view.handle_command(command),
+        }
+    }
+
+    fn handle_save(&mut self) {
+        let msg = match self.view.save() {
+            Ok(()) => "File saved successfully",
+            Err(_) => "Error writing file!",
+        };
+        self.message_bar.update_message(msg.to_string());
     }
 
     fn refresh_screen(&mut self) {

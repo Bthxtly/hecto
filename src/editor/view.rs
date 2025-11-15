@@ -76,8 +76,7 @@ impl View {
             EditorCommand::Tab => self.insert_tab(),
             EditorCommand::Delete => self.delete(),
             EditorCommand::Backspace => self.delete_backward(),
-            EditorCommand::Save => self.save(),
-            EditorCommand::Quit | EditorCommand::Resize(_) => {}
+            EditorCommand::Quit | EditorCommand::Save | EditorCommand::Resize(_) => {}
         }
     }
 
@@ -264,8 +263,8 @@ impl View {
         self.set_needs_redraw(true);
     }
 
-    fn save(&mut self) {
-        let _ = self.buffer.save();
+    pub fn save(&mut self) -> Result<(), std::io::Error> {
+        self.buffer.save()
     }
 
     pub fn get_status(&self) -> DocumentStatus {
