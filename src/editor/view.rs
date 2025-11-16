@@ -2,8 +2,8 @@ use std::cmp::min;
 
 use super::{
     NAME, VERSION,
+    command::{Edit, Move},
     documentstatus::DocumentStatus,
-    editorcommand::{Direction, EditorCommand},
     terminal::{Position, Size, Terminal},
     uicomponent::UIComponent,
 };
@@ -68,32 +68,30 @@ impl View {
         format!("{:<1}{:^remaining_width$}", "~", welcome_message)
     }
 
-    pub fn handle_command(&mut self, command: EditorCommand) {
+    pub fn handle_edit_command(&mut self, command: Edit) {
         match command {
-            EditorCommand::Move(direction) => self.move_text_location(direction),
-            EditorCommand::Insert(ch) => self.insert_char(ch),
-            EditorCommand::Enter => self.insert_newline(),
-            EditorCommand::Tab => self.insert_tab(),
-            EditorCommand::Delete => self.delete(),
-            EditorCommand::Backspace => self.delete_backward(),
-            EditorCommand::Quit | EditorCommand::Save | EditorCommand::Resize(_) => {}
+            Edit::Insert(ch) => self.insert_char(ch),
+            Edit::InsertTab => self.insert_tab(),
+            Edit::InsertNewline => self.insert_newline(),
+            Edit::Delete => self.delete(),
+            Edit::DeleteBackward => self.delete_backward(),
         }
     }
 
-    fn move_text_location(&mut self, direction: Direction) {
+    pub fn handle_move_command(&mut self, command: Move) {
         let Size { height, .. } = self.size;
 
         // This match moves the positon, but does not check for all boundaries.
         // The final boundarline checking happens after the match statement.
-        match direction {
-            Direction::Up => self.move_up(1),
-            Direction::Down => self.move_down(1),
-            Direction::Left => self.move_left(1),
-            Direction::Right => self.move_right(1),
-            Direction::PageUp => self.move_up(height.saturating_sub(1)),
-            Direction::PageDown => self.move_down(height.saturating_sub(1)),
-            Direction::Home => self.move_to_start_of_line(),
-            Direction::End => self.move_to_end_of_line(),
+        match command {
+            Move::Up => self.move_up(1),
+            Move::Down => self.move_down(1),
+            Move::Left => self.move_left(1),
+            Move::Right => self.move_right(1),
+            Move::PageUp => self.move_up(height.saturating_sub(1)),
+            Move::PageDown => self.move_down(height.saturating_sub(1)),
+            Move::StartOfLine => self.move_to_start_of_line(),
+            Move::EndOfLine => self.move_to_end_of_line(),
         }
 
         self.scroll_text_location_into_view();
@@ -234,7 +232,7 @@ impl View {
             .map_or(0, Line::grapheme_count);
 
         if new_len.saturating_sub(old_len) > 0 {
-            self.move_text_location(Direction::Right);
+            self.handle_move_command(Move::Right);
         }
         self.set_needs_redraw(true);
     }
@@ -249,7 +247,7 @@ impl View {
         if self.text_location.line_index == 0 && self.text_location.grapheme_index == 0 {
             return;
         }
-        self.move_text_location(Direction::Left);
+        self.handle_move_command(Move::Left);
         self.delete();
     }
 
@@ -259,7 +257,7 @@ impl View {
 
     fn insert_newline(&mut self) {
         self.buffer.insert_newline(&self.text_location);
-        self.move_text_location(Direction::Right);
+        self.handle_move_command(Move::Right);
         self.set_needs_redraw(true);
     }
 

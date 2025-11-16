@@ -3,13 +3,17 @@ use std::{
     panic::{set_hook, take_hook},
 };
 
+use command::{
+    Command::{self, Edit, Move, System},
+    System::{Quit, Resize, Save},
+};
 use crossterm::event::{
     Event::{self, Key},
     KeyEvent, KeyEventKind, read,
 };
 
+mod command;
 mod documentstatus;
-mod editorcommand;
 mod fileinfo;
 mod messagebar;
 mod statusbar;
@@ -17,7 +21,6 @@ mod terminal;
 mod uicomponent;
 mod view;
 
-use editorcommand::EditorCommand;
 use messagebar::MessageBar;
 use statusbar::StatusBar;
 use terminal::{Size, Terminal};
@@ -63,7 +66,7 @@ impl Editor {
         editor.refresh_status();
         editor
             .message_bar
-            .update_message("HELP: Ctrl-S = Save | Ctrl-T = Quit".to_string());
+            .update_message("HELP: Ctrl-S = Save | Ctrl-T = Quit");
 
         Ok(editor)
     }
@@ -129,18 +132,30 @@ impl Editor {
         };
 
         if should_process {
-            if let Ok(command) = EditorCommand::try_from(event) {
+            if let Ok(command) = Command::try_from(event) {
                 self.process_command(command);
             }
         }
     }
 
-    fn process_command(&mut self, command: EditorCommand) {
+    fn process_command(&mut self, command: Command) {
         match command {
-            EditorCommand::Quit => self.handle_quit(),
-            EditorCommand::Save => self.handle_save(),
-            EditorCommand::Resize(size) => self.resize(size),
-            _ => self.view.handle_command(command),
+            System(Quit) => self.handle_quit(),
+            System(Resize(size)) => self.resize(size),
+            _ => self.reset_quit_times(), // reset quit times for all other commands
+        }
+        match command {
+            System(Quit) | System(Resize(_)) => {} // already handled above
+            System(Save) => self.handle_save(),
+            Edit(edit_command) => self.view.handle_edit_command(edit_command),
+            Move(move_command) => self.view.handle_move_command(move_command),
+        }
+    }
+
+    fn reset_quit_times(&mut self) {
+        if self.quit_times > 0 {
+            self.quit_times = 0;
+            self.message_bar.update_message("");
         }
     }
 
@@ -149,7 +164,7 @@ impl Editor {
         if !is_modified || self.quit_times.saturating_add(1) == QUIT_TIMES {
             self.should_quit = true;
         } else if is_modified {
-            self.message_bar.update_message(format!(
+            self.message_bar.update_message(&format!(
                 "WARNING!!! File has unsaved changes. Press Ctrl-T {} more times to quit.",
                 QUIT_TIMES - self.quit_times - 1
             ));
@@ -162,7 +177,7 @@ impl Editor {
             Ok(()) => "File saved successfully",
             Err(_) => "Error writing file!",
         };
-        self.message_bar.update_message(msg.to_string());
+        self.message_bar.update_message(msg);
     }
 
     fn refresh_screen(&mut self) {
