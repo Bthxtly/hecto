@@ -68,9 +68,9 @@ impl View {
         format!("{:<1}{:^remaining_width$}", "~", welcome_message)
     }
 
-    pub fn handle_edit_command(&mut self, command: Edit) {
+    pub fn handle_edit_command(&mut self, command: &Edit) {
         match command {
-            Edit::Insert(ch) => self.insert_char(ch),
+            Edit::Insert(ch) => self.insert_char(*ch),
             Edit::InsertTab => self.insert_tab(),
             Edit::InsertNewline => self.insert_newline(),
             Edit::Delete => self.delete(),
@@ -78,7 +78,7 @@ impl View {
         }
     }
 
-    pub fn handle_move_command(&mut self, command: Move) {
+    pub fn handle_move_command(&mut self, command: &Move) {
         let Size { height, .. } = self.size;
 
         // This match moves the positon, but does not check for all boundaries.
@@ -232,7 +232,7 @@ impl View {
             .map_or(0, Line::grapheme_count);
 
         if new_len.saturating_sub(old_len) > 0 {
-            self.handle_move_command(Move::Right);
+            self.handle_move_command(&Move::Right);
         }
         self.set_needs_redraw(true);
     }
@@ -247,7 +247,7 @@ impl View {
         if self.text_location.line_index == 0 && self.text_location.grapheme_index == 0 {
             return;
         }
-        self.handle_move_command(Move::Left);
+        self.handle_move_command(&Move::Left);
         self.delete();
     }
 
@@ -257,7 +257,7 @@ impl View {
 
     fn insert_newline(&mut self) {
         self.buffer.insert_newline(&self.text_location);
-        self.handle_move_command(Move::Right);
+        self.handle_move_command(&Move::Right);
         self.set_needs_redraw(true);
     }
 

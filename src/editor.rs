@@ -145,10 +145,10 @@ impl Editor {
             _ => self.reset_quit_times(), // reset quit times for all other commands
         }
         match command {
-            System(Quit) | System(Resize(_)) => {} // already handled above
+            System(Quit | Resize(_)) => {} // already handled above
             System(Save) => self.handle_save(),
-            Edit(edit_command) => self.view.handle_edit_command(edit_command),
-            Move(move_command) => self.view.handle_move_command(move_command),
+            Edit(edit_command) => self.view.handle_edit_command(&edit_command),
+            Move(move_command) => self.view.handle_move_command(&move_command),
         }
     }
 
@@ -159,6 +159,8 @@ impl Editor {
         }
     }
 
+    // clippy::arithmetic_side_effects: quit_times is guaranteed to be between 0 and QUIT_TIMES
+    #[allow(clippy::arithmetic_side_effects)]
     fn handle_quit(&mut self) {
         let is_modified = self.view.get_status().is_modified;
         if !is_modified || self.quit_times.saturating_add(1) == QUIT_TIMES {
