@@ -76,13 +76,8 @@ impl Terminal {
         Ok(())
     }
 
-    pub fn clear_screen() -> Result<(), std::io::Error> {
+    fn clear_screen() -> Result<(), std::io::Error> {
         Self::queue_command(Clear(ClearType::All))?;
-        Ok(())
-    }
-
-    pub fn clear_line() -> Result<(), std::io::Error> {
-        Self::queue_command(Clear(ClearType::CurrentLine))?;
         Ok(())
     }
 
@@ -105,8 +100,38 @@ impl Terminal {
         Ok(())
     }
 
+    pub fn set_title(title: &str) -> Result<(), std::io::Error> {
+        Self::queue_command(SetTitle(title))?;
+        Ok(())
+    }
+
     pub fn print(s: &str) -> Result<(), std::io::Error> {
         Self::queue_command(Print(s))?;
+        Ok(())
+    }
+
+    pub fn print_row(row: usize, line_text: &str) -> Result<(), std::io::Error> {
+        Self::move_caret_to(&Position { row, col: 0 })?;
+        Self::clear_line()?;
+        Self::print(line_text)?;
+        Ok(())
+    }
+
+    pub fn print_inverted_row(row: usize, line_text: &str) -> Result<(), std::io::Error> {
+        let width = Self::size()?.width;
+        Self::print_row(
+            row,
+            &format!(
+                "{}{:width$.width$}{}",
+                Attribute::Reverse,
+                line_text,
+                Attribute::Reset
+            ),
+        )
+    }
+
+    fn clear_line() -> Result<(), std::io::Error> {
+        Self::queue_command(Clear(ClearType::CurrentLine))?;
         Ok(())
     }
 
@@ -131,31 +156,6 @@ impl Terminal {
 
     fn queue_command<T: Command>(command: T) -> Result<(), std::io::Error> {
         queue!(stdout(), command)?;
-        Ok(())
-    }
-
-    pub fn print_row(row: usize, line_text: &str) -> Result<(), std::io::Error> {
-        Self::move_caret_to(&Position { row, col: 0 })?;
-        Self::clear_line()?;
-        Self::print(line_text)?;
-        Ok(())
-    }
-
-    pub fn print_inverted_row(row: usize, line_text: &str) -> Result<(), std::io::Error> {
-        let width = Self::size()?.width;
-        Self::print_row(
-            row,
-            &format!(
-                "{}{:width$.width$}{}",
-                Attribute::Reverse,
-                line_text,
-                Attribute::Reset
-            ),
-        )
-    }
-
-    pub fn set_title(title: &str) -> Result<(), std::io::Error> {
-        Self::queue_command(SetTitle(title))?;
         Ok(())
     }
 }

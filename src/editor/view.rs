@@ -33,6 +33,19 @@ impl View {
         self.buffer = Buffer::load(filename);
     }
 
+    pub fn save(&mut self) -> Result<(), std::io::Error> {
+        self.buffer.save()
+    }
+
+    pub fn get_status(&self) -> DocumentStatus {
+        DocumentStatus {
+            total_lines: self.buffer.height(),
+            current_line_index: self.text_location.line_index,
+            is_modified: self.buffer.dirty,
+            filename: format!("{}", self.buffer.file_info),
+        }
+    }
+
     pub fn caret_position(&self) -> Position {
         self.text_location_to_position()
             .saturating_sub(&self.scroll_offset)
@@ -47,27 +60,6 @@ impl View {
         Position { row, col }
     }
 
-    fn render_line(at: usize, line_text: &str) -> Result<(), std::io::Error> {
-        Terminal::print_row(at, line_text)?;
-        Ok(())
-    }
-
-    fn build_welcome_message(width: usize) -> String {
-        if width == 0 {
-            return String::new();
-        }
-
-        let welcome_message = format!("{NAME} editor -- version {VERSION}");
-
-        let len = welcome_message.len();
-        let remaining_width = width.saturating_sub(1);
-        if remaining_width <= len {
-            return "~".to_string();
-        }
-
-        format!("{:<1}{:^remaining_width$}", "~", welcome_message)
-    }
-
     pub fn handle_edit_command(&mut self, command: &Edit) {
         match command {
             Edit::Insert(ch) => self.insert_char(*ch),
@@ -76,6 +68,51 @@ impl View {
             Edit::Delete => self.delete(),
             Edit::DeleteBackward => self.delete_backward(),
         }
+    }
+
+    fn insert_char(&mut self, ch: char) {
+        let old_len = self
+            .buffer
+            .lines
+            .get(self.text_location.line_index)
+            .map_or(0, Line::grapheme_count);
+
+        self.buffer.insert_char(ch, &self.text_location);
+
+        let new_len = self
+            .buffer
+            .lines
+            .get(self.text_location.line_index)
+            .map_or(0, Line::grapheme_count);
+
+        if new_len.saturating_sub(old_len) > 0 {
+            self.handle_move_command(&Move::Right);
+        }
+        self.set_needs_redraw(true);
+    }
+
+    fn insert_tab(&mut self) {
+        self.insert_char('\t');
+    }
+
+    fn insert_newline(&mut self) {
+        self.buffer.insert_newline(&self.text_location);
+        self.handle_move_command(&Move::Right);
+        self.set_needs_redraw(true);
+    }
+
+    fn delete(&mut self) {
+        self.buffer.delete(&self.text_location);
+        self.set_needs_redraw(true);
+    }
+
+    fn delete_backward(&mut self) {
+        // do nothing if at top-left corner
+        if self.text_location.line_index == 0 && self.text_location.grapheme_index == 0 {
+            return;
+        }
+        self.handle_move_command(&Move::Left);
+        self.delete();
     }
 
     pub fn handle_move_command(&mut self, command: &Move) {
@@ -216,62 +253,25 @@ impl View {
         }
     }
 
-    fn insert_char(&mut self, ch: char) {
-        let old_len = self
-            .buffer
-            .lines
-            .get(self.text_location.line_index)
-            .map_or(0, Line::grapheme_count);
+    fn render_line(at: usize, line_text: &str) -> Result<(), std::io::Error> {
+        Terminal::print_row(at, line_text)?;
+        Ok(())
+    }
 
-        self.buffer.insert_char(ch, &self.text_location);
-
-        let new_len = self
-            .buffer
-            .lines
-            .get(self.text_location.line_index)
-            .map_or(0, Line::grapheme_count);
-
-        if new_len.saturating_sub(old_len) > 0 {
-            self.handle_move_command(&Move::Right);
+    fn build_welcome_message(width: usize) -> String {
+        if width == 0 {
+            return String::new();
         }
-        self.set_needs_redraw(true);
-    }
 
-    fn delete(&mut self) {
-        self.buffer.delete(&self.text_location);
-        self.set_needs_redraw(true);
-    }
+        let welcome_message = format!("{NAME} editor -- version {VERSION}");
 
-    fn delete_backward(&mut self) {
-        // do nothing if at top-left corner
-        if self.text_location.line_index == 0 && self.text_location.grapheme_index == 0 {
-            return;
+        let len = welcome_message.len();
+        let remaining_width = width.saturating_sub(1);
+        if remaining_width <= len {
+            return "~".to_string();
         }
-        self.handle_move_command(&Move::Left);
-        self.delete();
-    }
 
-    fn insert_tab(&mut self) {
-        self.insert_char('\t');
-    }
-
-    fn insert_newline(&mut self) {
-        self.buffer.insert_newline(&self.text_location);
-        self.handle_move_command(&Move::Right);
-        self.set_needs_redraw(true);
-    }
-
-    pub fn save(&mut self) -> Result<(), std::io::Error> {
-        self.buffer.save()
-    }
-
-    pub fn get_status(&self) -> DocumentStatus {
-        DocumentStatus {
-            total_lines: self.buffer.height(),
-            current_line_index: self.text_location.line_index,
-            is_modified: self.buffer.dirty,
-            filename: format!("{}", self.buffer.file_info),
-        }
+        format!("{:<1}{:^remaining_width$}", "~", welcome_message)
     }
 }
 

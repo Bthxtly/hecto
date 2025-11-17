@@ -3,10 +3,6 @@ use std::{
     panic::{set_hook, take_hook},
 };
 
-use command::{
-    Command::{self, Edit, Move, System},
-    System::{Quit, Resize, Save},
-};
 use crossterm::event::{
     Event::{self, Key},
     KeyEvent, KeyEventKind, read,
@@ -21,6 +17,10 @@ mod terminal;
 mod uicomponent;
 mod view;
 
+use command::{
+    Command::{self, Edit, Move, System},
+    System::{Quit, Resize, Save},
+};
 use messagebar::MessageBar;
 use statusbar::StatusBar;
 use terminal::{Size, Terminal};
@@ -124,6 +124,27 @@ impl Editor {
         }
     }
 
+    fn refresh_screen(&mut self) {
+        if self.terminal_size.height == 0 || self.terminal_size.width == 0 {
+            return;
+        }
+
+        let _ = Terminal::hide_caret();
+
+        let height = self.terminal_size.height;
+        self.message_bar.render(height.saturating_sub(1));
+        if height > 1 {
+            self.status_bar.render(height.saturating_sub(2));
+        }
+        if height > 2 {
+            self.view.render(0);
+        }
+
+        let _ = Terminal::move_caret_to(&self.view.caret_position());
+        let _ = Terminal::show_caret();
+        let _ = Terminal::execute();
+    }
+
     fn evaluate_event(&mut self, event: Event) {
         let should_process = match &event {
             Key(KeyEvent { kind, .. }) => kind == &KeyEventKind::Press,
@@ -180,27 +201,6 @@ impl Editor {
             Err(_) => "Error writing file!",
         };
         self.message_bar.update_message(msg);
-    }
-
-    fn refresh_screen(&mut self) {
-        if self.terminal_size.height == 0 || self.terminal_size.width == 0 {
-            return;
-        }
-
-        let _ = Terminal::hide_caret();
-
-        let height = self.terminal_size.height;
-        self.message_bar.render(height.saturating_sub(1));
-        if height > 1 {
-            self.status_bar.render(height.saturating_sub(2));
-        }
-        if height > 2 {
-            self.view.render(0);
-        }
-
-        let _ = Terminal::move_caret_to(&self.view.caret_position());
-        let _ = Terminal::show_caret();
-        let _ = Terminal::execute();
     }
 }
 
