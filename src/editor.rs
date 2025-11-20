@@ -3,15 +3,19 @@ use std::{
     panic::{set_hook, take_hook},
 };
 
+use commandbar::CommandBar;
 use crossterm::event::{
     Event::{self, Key},
     KeyEvent, KeyEventKind, read,
 };
 
 mod command;
+mod commandbar;
 mod documentstatus;
-mod fileinfo;
+mod line;
 mod messagebar;
+mod position;
+mod size;
 mod statusbar;
 mod terminal;
 mod uicomponent;
@@ -22,8 +26,10 @@ use command::{
     System::{Quit, Resize, Save},
 };
 use messagebar::MessageBar;
+use position::Position;
+use size::Size;
 use statusbar::StatusBar;
-use terminal::{Size, Terminal};
+use terminal::Terminal;
 use uicomponent::UIComponent;
 use view::View;
 
@@ -38,6 +44,7 @@ pub struct Editor {
     view: View,
     status_bar: StatusBar,
     message_bar: MessageBar,
+    command_bar: Option<CommandBar>,
     terminal_size: Size,
     title: String,
     quit_times: u8,
@@ -85,6 +92,12 @@ impl Editor {
             height: 1,
             width: size.width,
         });
+        if let Some(command_bar) = &mut self.command_bar {
+            command_bar.resize(Size {
+                height: 1,
+                width: size.width,
+            });
+        }
     }
 
     fn refresh_status(&mut self) {
@@ -131,8 +144,14 @@ impl Editor {
 
         let _ = Terminal::hide_caret();
 
+        let bottom_bar_row = self.terminal_size.height.saturating_sub(1);
+        if let Some(command_bar) = &mut self.command_bar {
+            command_bar.render(bottom_bar_row);
+        } else {
+            self.message_bar.render(bottom_bar_row);
+        }
+
         let height = self.terminal_size.height;
-        self.message_bar.render(height.saturating_sub(1));
         if height > 1 {
             self.status_bar.render(height.saturating_sub(2));
         }
@@ -140,7 +159,16 @@ impl Editor {
             self.view.render(0);
         }
 
-        let _ = Terminal::move_caret_to(&self.view.caret_position());
+        let new_caret_pos = if let Some(comband_bar) = &self.command_bar {
+            Position {
+                row: bottom_bar_row,
+                col: comband_bar.caret_position_col(),
+            }
+        } else {
+            self.view.caret_position()
+        };
+
+        let _ = Terminal::move_caret_to(&new_caret_pos);
         let _ = Terminal::show_caret();
         let _ = Terminal::execute();
     }
@@ -161,15 +189,50 @@ impl Editor {
 
     fn process_command(&mut self, command: Command) {
         match command {
-            System(Quit) => self.handle_quit(),
+            System(Quit) => {
+                if self.command_bar.is_none() {
+                    // treat "Quit" only when outside of the prompt
+                    self.handle_quit()
+                }
+            }
             System(Resize(size)) => self.resize(size),
             _ => self.reset_quit_times(), // reset quit times for all other commands
         }
         match command {
             System(Quit | Resize(_)) => {} // already handled above
-            System(Save) => self.handle_save(),
-            Edit(edit_command) => self.view.handle_edit_command(&edit_command),
-            Move(move_command) => self.view.handle_move_command(&move_command),
+            System(Save) => {
+                if self.command_bar.is_none() {
+                    // treat "Save" only when outside of the prompt
+                    self.handle_save()
+                }
+            }
+            System(command::System::Dismiss) => {
+                if self.command_bar.is_some() {
+                    self.dismiss_prompt();
+                    self.message_bar.update_message("Save aborted.");
+                }
+            }
+            Edit(edit_command) => {
+                if let Some(command_bar) = &mut self.command_bar {
+                    if matches!(edit_command, command::Edit::InsertNewline) {
+                        // take the file name after read a "Enter"
+                        let filename = command_bar.value();
+                        self.dismiss_prompt();
+                        self.save(Some(&filename));
+                    } else {
+                        command_bar.handle_edit_command(&edit_command);
+                    }
+                } else {
+                    self.view.handle_edit_command(&edit_command);
+                }
+            }
+            Move(move_command) => {
+                if let Some(command_bar) = &mut self.command_bar {
+                    command_bar.handle_move_command(&move_command);
+                } else {
+                    self.view.handle_move_command(&move_command);
+                }
+            }
         }
     }
 
@@ -196,11 +259,40 @@ impl Editor {
     }
 
     fn handle_save(&mut self) {
-        let msg = match self.view.save() {
+        if self.view.is_file_loaded() {
+            self.save(None);
+        } else {
+            self.show_prompt();
+        }
+    }
+
+    fn save(&mut self, filename: Option<&str>) {
+        let result = if let Some(filename) = filename {
+            self.view.save_as(filename)
+        } else {
+            self.view.save()
+        };
+
+        let msg = match result {
             Ok(()) => "File saved successfully",
             Err(_) => "Error writing file!",
         };
         self.message_bar.update_message(msg);
+    }
+
+    fn show_prompt(&mut self) {
+        let mut command_bar = CommandBar::default();
+        command_bar.set_prompt("Save as: ");
+        command_bar.resize(Size {
+            height: 1,
+            width: self.terminal_size.width,
+        });
+        self.command_bar = Some(command_bar);
+    }
+
+    fn dismiss_prompt(&mut self) {
+        self.command_bar = None;
+        self.message_bar.set_needs_redraw(true);
     }
 }
 

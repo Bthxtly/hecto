@@ -8,26 +8,7 @@ use crossterm::{Command, queue};
 
 use std::io::{Write, stdout};
 
-#[derive(Default, Debug, Clone, Copy)]
-pub struct Size {
-    pub height: usize,
-    pub width: usize,
-}
-
-#[derive(Default)]
-pub struct Position {
-    pub row: usize,
-    pub col: usize,
-}
-
-impl Position {
-    pub const fn saturating_sub(&self, other: &Self) -> Self {
-        Self {
-            row: self.row.saturating_sub(other.row),
-            col: self.col.saturating_sub(other.col),
-        }
-    }
-}
+use super::{Position, Size};
 
 /// Represents the Terminal.
 /// Edge Case for platforms where `usize` < `u16`:

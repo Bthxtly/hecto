@@ -2,10 +2,9 @@ use std::fs::File;
 use std::fs::read_to_string;
 use std::io::Write;
 
-use crate::editor::fileinfo::FileInfo;
-
 use super::Location;
-use super::line::Line;
+use super::fileinfo::FileInfo;
+use crate::editor::line::Line;
 
 #[derive(Default)]
 pub struct Buffer {
@@ -31,6 +30,36 @@ impl Buffer {
                 dirty: true,
             }
         }
+    }
+
+    pub fn save_as(&mut self, filename: &str) -> Result<(), std::io::Error> {
+        let file_info = FileInfo::from(filename);
+        self.save_to_file(&file_info)?;
+        self.file_info = file_info;
+        self.dirty = false;
+        Ok(())
+    }
+
+    pub fn save(&mut self) -> Result<(), std::io::Error> {
+        self.save_to_file(&self.file_info)?;
+        self.dirty = false;
+        Ok(())
+    }
+
+    fn save_to_file(&self, file_info: &FileInfo) -> Result<(), std::io::Error> {
+        if let Some(path) = file_info.get_path() {
+            let mut file = File::create(path)?;
+            for line in &self.lines {
+                writeln!(file, "{line}")?;
+            }
+        } else {
+        }
+
+        Ok(())
+    }
+
+    pub const fn is_file_loaded(&self) -> bool {
+        self.file_info.has_path()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -76,17 +105,5 @@ impl Buffer {
             self.lines.push(Line::default());
         }
         self.dirty = true;
-    }
-
-    pub fn save(&mut self) -> Result<(), std::io::Error> {
-        if let Some(path) = &self.file_info.path {
-            let mut file = File::create(path)?;
-            for line in &self.lines {
-                writeln!(file, "{line}")?;
-            }
-            self.dirty = false;
-        }
-
-        Ok(())
     }
 }

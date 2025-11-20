@@ -1,17 +1,18 @@
 use std::cmp::min;
 
 use super::{
-    NAME, VERSION,
+    NAME, Position, Size, VERSION,
     command::{Edit, Move},
     documentstatus::DocumentStatus,
-    terminal::{Position, Size, Terminal},
+    line::Line,
+    terminal::Terminal,
     uicomponent::UIComponent,
 };
+
 use buffer::Buffer;
-use line::Line;
 
 mod buffer;
-mod line;
+mod fileinfo;
 
 #[derive(Default)]
 pub struct Location {
@@ -33,8 +34,16 @@ impl View {
         self.buffer = Buffer::load(filename);
     }
 
+    pub fn is_file_loaded(&self) -> bool {
+        self.buffer.is_file_loaded()
+    }
+
     pub fn save(&mut self) -> Result<(), std::io::Error> {
         self.buffer.save()
+    }
+
+    pub fn save_as(&mut self, filename: &str) -> Result<(), std::io::Error> {
+        self.buffer.save_as(filename)
     }
 
     pub fn get_status(&self) -> DocumentStatus {

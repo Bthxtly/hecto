@@ -72,6 +72,10 @@ impl Line {
         }
     }
 
+    pub fn width(&self) -> usize {
+        self.fragments.len()
+    }
+
     pub fn get_visible_graphemes(&self, range: Range<usize>) -> String {
         let start = range.start;
         let end = range.end;
@@ -153,11 +157,19 @@ impl Line {
         self.fragments = Self::str_to_fragments(&concat);
     }
 
+    pub fn append_char(&mut self, ch: char) {
+        self.insert_char(ch, self.grapheme_count());
+    }
+
     pub fn split(&mut self, at: usize) -> Self {
         let reminder = self.fragments.split_off(at);
         Self {
             fragments: reminder,
         }
+    }
+
+    pub fn delete_last(&mut self) {
+        self.delete(self.grapheme_count().saturating_sub(1));
     }
 }
 

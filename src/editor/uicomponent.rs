@@ -1,4 +1,4 @@
-use super::terminal::Size;
+use super::Size;
 
 pub trait UIComponent {
     // marks this UI component as in need of redrawing or not

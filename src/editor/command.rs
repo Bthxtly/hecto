@@ -1,5 +1,5 @@
 use crate::editor::KeyEvent;
-use crate::editor::terminal::Size;
+use crate::editor::Size;
 use crossterm::event::{Event, KeyCode, KeyModifiers};
 
 pub enum Move {
@@ -70,6 +70,7 @@ impl TryFrom<KeyEvent> for Edit {
 
 pub enum System {
     Save,
+    Dismiss,
     Resize(Size),
     Quit,
 }
@@ -87,6 +88,8 @@ impl TryFrom<KeyEvent> for System {
                 KeyCode::Char('s') => Ok(Self::Save),
                 _ => Err(format!("Unknown not CONTROL+{code:?} combination")),
             }
+        } else if modifiers == KeyModifiers::NONE && matches!(code, KeyCode::Esc) {
+            Ok(Self::Dismiss)
         } else {
             Err(format!(
                 "Unsupported code: {code:?} with modifiers {modifiers:?}"
