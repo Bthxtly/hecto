@@ -52,7 +52,6 @@ impl Buffer {
             for line in &self.lines {
                 writeln!(file, "{line}")?;
             }
-        } else {
         }
 
         Ok(())

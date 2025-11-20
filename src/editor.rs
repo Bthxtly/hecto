@@ -192,7 +192,7 @@ impl Editor {
             System(Quit) => {
                 if self.command_bar.is_none() {
                     // treat "Quit" only when outside of the prompt
-                    self.handle_quit()
+                    self.handle_quit();
                 }
             }
             System(Resize(size)) => self.resize(size),
@@ -203,7 +203,7 @@ impl Editor {
             System(Save) => {
                 if self.command_bar.is_none() {
                     // treat "Save" only when outside of the prompt
-                    self.handle_save()
+                    self.handle_save();
                 }
             }
             System(command::System::Dismiss) => {

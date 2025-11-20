@@ -55,7 +55,7 @@ impl UIComponent for MessageBar {
 
     fn set_size(&mut self, _size: Size) {}
 
-    fn draw(&mut self, origin_y: usize) -> Result<(), std::io::Error> {
+    fn draw(&mut self, origin_row: usize) -> Result<(), std::io::Error> {
         if self.current_message.is_expired() {
             self.cleared_after_expiry = true;
         }
@@ -66,7 +66,7 @@ impl UIComponent for MessageBar {
             &self.current_message.text
         };
 
-        Terminal::print_row(origin_y, message)?;
+        Terminal::print_row(origin_row, message)?;
         Ok(())
     }
 }

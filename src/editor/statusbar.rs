@@ -29,7 +29,7 @@ impl UIComponent for StatusBar {
         self.size = size;
     }
 
-    fn draw(&mut self, origin_y: usize) -> Result<(), std::io::Error> {
+    fn draw(&mut self, origin_row: usize) -> Result<(), std::io::Error> {
         if let Ok(size) = Terminal::size() {
             // left
             let filename = &self.current_status.filename;
@@ -56,7 +56,7 @@ impl UIComponent for StatusBar {
                 String::new()
             };
 
-            let result = Terminal::print_inverted_row(origin_y, &to_print);
+            let result = Terminal::print_inverted_row(origin_row, &to_print);
             // will ignore this in release build
             debug_assert!(result.is_ok(), "Failed to render line");
 

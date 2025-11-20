@@ -27,7 +27,7 @@ impl CommandBar {
     }
 
     pub fn handle_move_command(&self, _move_command: &Move) {
-        // ignore caret movement at this time
+        todo!("ignore caret movement at this time");
     }
 
     pub fn value(&self) -> String {
@@ -58,10 +58,10 @@ impl UIComponent for CommandBar {
     }
 
     fn set_size(&mut self, size: Size) {
-        self.size = size
+        self.size = size;
     }
 
-    fn draw(&mut self, origin_y: usize) -> Result<(), std::io::Error> {
+    fn draw(&mut self, origin_row: usize) -> Result<(), std::io::Error> {
         let area_for_value = self.size.width.saturating_sub(self.prompt.len());
         let value_end = self.value.width();
         let value_start = value_end.saturating_sub(area_for_value);
@@ -72,7 +72,7 @@ impl UIComponent for CommandBar {
 
         // wish the editor is not too narrow 🙏
         assert!(message.len() < self.size.width);
-        Terminal::print_row(origin_y, message)?;
+        Terminal::print_row(origin_row, message)?;
         Ok(())
     }
 }
