@@ -46,6 +46,10 @@ impl View {
         self.buffer.save_as(filename)
     }
 
+    pub fn search(&mut self, word: &str) {
+        // TODO: implement later
+    }
+
     pub fn get_status(&self) -> DocumentStatus {
         DocumentStatus {
             total_lines: self.buffer.height(),

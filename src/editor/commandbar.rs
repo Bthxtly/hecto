@@ -45,6 +45,12 @@ impl CommandBar {
 
     pub fn set_prompt(&mut self, prompt: &str) {
         self.prompt = prompt.to_string();
+        self.set_needs_redraw(true);
+    }
+
+    pub fn clear_value(&mut self) {
+        self.value = Line::default();
+        self.set_needs_redraw(true);
     }
 }
 
@@ -66,11 +72,10 @@ impl UIComponent for CommandBar {
         let value_end = self.value.width();
         let value_start = value_end.saturating_sub(area_for_value);
         let value_visible = self.value.get_visible_graphemes(value_start..value_end);
-        dbg!(value_start, value_end, &value_visible);
 
         let message = &format!("{}{}", self.prompt, value_visible);
 
-        // wish the editor is not too narrow 🙏
+        // FIXME: wish the editor is not too narrow 🙏
         assert!(message.len() < self.size.width);
         Terminal::print_row(origin_row, message)?;
         Ok(())
