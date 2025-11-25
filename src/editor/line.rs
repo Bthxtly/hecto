@@ -141,7 +141,6 @@ impl Line {
     }
 
     pub fn delete(&mut self, at: usize) {
-        self.string.remove(at);
         if let Some(fragment) = self.fragments.get(at) {
             let start = fragment.byte_index;
             let end = start.saturating_add(fragment.grapheme.len());
