@@ -309,8 +309,8 @@ impl Editor {
         self.set_prompt(PromptType::Search);
     }
 
-    fn search(&mut self, word: &str) {
-        self.view.search(word)
+    fn search(&self, pat: &str) {
+        self.view.search(pat)
     }
 
     fn update_message(&mut self, new_message: &str) {

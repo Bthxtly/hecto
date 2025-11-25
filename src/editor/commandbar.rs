@@ -69,7 +69,7 @@ impl UIComponent for CommandBar {
 
     fn draw(&mut self, origin_row: usize) -> Result<(), std::io::Error> {
         let area_for_value = self.size.width.saturating_sub(self.prompt.len());
-        let value_end = self.value.width();
+        let value_end = self.value.grapheme_count();
         let value_start = value_end.saturating_sub(area_for_value);
         let value_visible = self.value.get_visible_graphemes(value_start..value_end);
 

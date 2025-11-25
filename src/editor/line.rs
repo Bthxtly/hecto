@@ -20,6 +20,7 @@ impl GraphemeWidth {
 
 #[derive(Debug)]
 struct TextFragment {
+    byte_index: usize,
     grapheme: String,
     rendered_width: GraphemeWidth,
     replacement: Option<char>,
@@ -27,40 +28,50 @@ struct TextFragment {
 
 #[derive(Default)]
 pub struct Line {
+    string: String,
     fragments: Vec<TextFragment>,
 }
 
 impl Line {
     pub fn from(line_str: &str) -> Self {
+        let source = line_str.to_string();
         let fragments = Self::str_to_fragments(line_str);
-        Self { fragments }
+        Self {
+            string: source,
+            fragments,
+        }
     }
 
     fn str_to_fragments(line_str: &str) -> Vec<TextFragment> {
-        let grapheme_to_fragment = |grapheme: &str| {
-            let (replacement, rendered_width) = Self::replacement_character(grapheme).map_or_else(
-                || {
-                    let unicode_width = grapheme.width();
-                    let rendered_width = match unicode_width {
-                        0 | 1 => GraphemeWidth::Half,
-                        _ => GraphemeWidth::Full,
-                    };
-                    (None, rendered_width)
-                },
-                |replacement| (Some(replacement), GraphemeWidth::Half),
-            );
+        let grapheme_to_fragment = |(byte_index, grapheme): (usize, &str)| {
+            let (replacement, rendered_width) = Self::get_replacement_character(grapheme)
+                .map_or_else(
+                    || {
+                        let unicode_width = grapheme.width();
+                        let rendered_width = match unicode_width {
+                            0 | 1 => GraphemeWidth::Half,
+                            _ => GraphemeWidth::Full,
+                        };
+                        (None, rendered_width)
+                    },
+                    |replacement| (Some(replacement), GraphemeWidth::Half),
+                );
 
             TextFragment {
+                byte_index,
                 grapheme: grapheme.to_string(),
                 rendered_width,
                 replacement,
             }
         };
 
-        line_str.graphemes(true).map(grapheme_to_fragment).collect()
+        line_str
+            .grapheme_indices(true)
+            .map(grapheme_to_fragment)
+            .collect()
     }
 
-    fn replacement_character(for_str: &str) -> Option<char> {
+    fn get_replacement_character(for_str: &str) -> Option<char> {
         let width = for_str.width();
         match for_str {
             " " => None,
@@ -70,10 +81,6 @@ impl Line {
             _ if width == 0 => Some('·'),
             _ => None,
         }
-    }
-
-    pub fn width(&self) -> usize {
-        self.fragments.len()
     }
 
     pub fn get_visible_graphemes(&self, range: Range<usize>) -> String {
@@ -120,41 +127,32 @@ impl Line {
             .sum()
     }
 
+    fn rebuild_fragments(&mut self) {
+        self.fragments = Self::str_to_fragments(&self.string);
+    }
+
     pub fn insert_char(&mut self, ch: char, at: usize) {
-        let mut new_line = String::new();
-
-        for (index, fragment) in self.fragments.iter().enumerate() {
-            if index == at {
-                new_line.push(ch);
-            }
-            new_line.push_str(&fragment.grapheme);
+        if let Some(fragment) = self.fragments.get(at) {
+            self.string.insert(fragment.byte_index, ch);
+        } else {
+            self.string.push(ch);
         }
-
-        // insert at the end of line
-        if at >= self.fragments.len() {
-            new_line.push(ch);
-        }
-
-        self.fragments = Self::str_to_fragments(&new_line);
+        self.rebuild_fragments();
     }
 
     pub fn delete(&mut self, at: usize) {
-        let mut new_line = String::new();
-
-        for (index, fragment) in self.fragments.iter().enumerate() {
-            if index == at {
-                continue;
-            }
-            new_line.push_str(&fragment.grapheme);
+        self.string.remove(at);
+        if let Some(fragment) = self.fragments.get(at) {
+            let start = fragment.byte_index;
+            let end = start.saturating_add(fragment.grapheme.len());
+            self.string.drain(start..end);
         }
-
-        self.fragments = Self::str_to_fragments(&new_line);
+        self.rebuild_fragments();
     }
 
     pub fn append(&mut self, other: &Self) {
-        let mut concat = self.to_string();
-        concat.push_str(&other.to_string());
-        self.fragments = Self::str_to_fragments(&concat);
+        self.string.push_str(&other.string);
+        self.rebuild_fragments();
     }
 
     pub fn append_char(&mut self, ch: char) {
@@ -162,25 +160,47 @@ impl Line {
     }
 
     pub fn split(&mut self, at: usize) -> Self {
-        let reminder = self.fragments.split_off(at);
         Self {
-            fragments: reminder,
+            string: self.string.split_off(at),
+            fragments: self.fragments.split_off(at),
         }
     }
 
     pub fn delete_last(&mut self) {
         self.delete(self.grapheme_count().saturating_sub(1));
     }
+
+    pub fn search(&self, pat: &str) -> Option<usize> {
+        self.string.find(pat)
+    }
+
+    fn index_to_location(&self, index: usize) -> usize {
+        for (i, fragment) in self.fragments.iter().enumerate() {
+            if fragment.byte_index == index {
+                return i;
+            }
+        }
+        unreachable!()
+    }
 }
 
 impl fmt::Display for Line {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
-        let result: String = self
-            .fragments
-            .iter()
-            .map(|fragment| fragment.grapheme.clone())
-            .collect();
+        write!(f, "{}", self.string)
+    }
+}
 
-        write!(f, "{result}")
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn search_for_text() {
+        let s = "Löwe 老虎 Léopard Gepardi";
+        let line = Line::from(s);
+        let index = line.search("pard");
+        assert_eq!(index, Some(17));
+        let location = line.index_to_location(index.unwrap());
+        assert_eq!(location, 11);
     }
 }

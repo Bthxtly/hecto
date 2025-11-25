@@ -105,4 +105,10 @@ impl Buffer {
         }
         self.dirty = true;
     }
+
+    pub fn search(&self, pat: &str) {
+        for line in &self.lines {
+            line.search(pat);
+        }
+    }
 }
