@@ -22,7 +22,7 @@ mod view;
 
 use command::{
     Command::{self, Edit, Move, System},
-    System::{Quit, Resize, Save, Search},
+    System::{Dismiss, Quit, Resize, Save, Search},
 };
 use commandbar::CommandBar;
 use messagebar::MessageBar;
@@ -78,7 +78,7 @@ impl Editor {
 
         let mut editor = Self::default();
         let size = Terminal::size().unwrap_or_default();
-        editor.resize(size);
+        editor.handle_resize_command(size);
 
         let args: Vec<String> = env::args().collect();
         if let Some(filename) = args.get(1) {
@@ -91,26 +91,6 @@ impl Editor {
             .update_message("HELP: Ctrl-F = find | Ctrl-S = Save | Ctrl-T = Quit");
 
         Ok(editor)
-    }
-
-    fn resize(&mut self, size: Size) {
-        self.terminal_size = size;
-        self.view.resize(Size {
-            height: size.height.saturating_sub(2),
-            width: size.width,
-        });
-        self.status_bar.resize(Size {
-            height: 1,
-            width: size.width,
-        });
-        self.message_bar.resize(Size {
-            height: 1,
-            width: size.width,
-        });
-        self.command_bar.resize(Size {
-            height: 1,
-            width: size.width,
-        });
     }
 
     fn refresh_status(&mut self) {
@@ -200,64 +180,46 @@ impl Editor {
     }
 
     fn process_command(&mut self, command: Command) {
-        match command {
-            System(Quit) => {
-                if self.no_prompt() {
-                    self.handle_quit();
-                }
-            }
-            System(Resize(size)) => self.resize(size),
-            _ => self.reset_quit_times(), // reset quit times for all other commands
+        if let System(Resize(size)) = command {
+            self.handle_resize_command(size);
         }
+
+        match self.prompt_type {
+            PromptType::None => self.process_command_no_prompt(command),
+            PromptType::Save => self.process_command_during_save(command),
+            PromptType::Search => self.process_command_during_search(command),
+        }
+    }
+
+    fn handle_resize_command(&mut self, size: Size) {
+        self.terminal_size = size;
+        let bar_size = Size {
+            height: 1,
+            width: size.width,
+        };
+
+        self.view.resize(Size {
+            height: size.height.saturating_sub(2),
+            width: size.width,
+        });
+        self.status_bar.resize(bar_size);
+        self.message_bar.resize(bar_size);
+        self.command_bar.resize(bar_size);
+    }
+
+    fn process_command_no_prompt(&mut self, command: Command) {
+        if matches!(command, System(Quit)) {
+            self.handle_quit();
+            return;
+        }
+        self.reset_quit_times();
+
         match command {
-            System(Quit | Resize(_)) => {} // already handled above
-            System(Save) => {
-                if self.no_prompt() {
-                    self.handle_save();
-                }
-            }
-            System(Search) => {
-                if self.no_prompt() {
-                    self.handle_search();
-                }
-            }
-            System(command::System::Dismiss) => {
-                if self.in_prompt() {
-                    self.dismiss_prompt();
-                    self.update_message("Save aborted.");
-                }
-            }
-            Edit(edit_command) => {
-                if self.in_prompt() {
-                    if matches!(edit_command, command::Edit::InsertNewline) {
-                        // take the value after read a "Enter"
-                        let value = self.command_bar.value();
-                        match self.prompt_type {
-                            PromptType::None => unreachable!(),
-                            PromptType::Search => {
-                                self.search(&value);
-                                self.message_bar
-                                    .update_message(&format!("Search for: `{value}`"));
-                            }
-                            PromptType::Save => {
-                                self.save(Some(&value));
-                            }
-                        }
-                        self.dismiss_prompt();
-                    } else {
-                        self.command_bar.handle_edit_command(&edit_command);
-                    }
-                } else {
-                    self.view.handle_edit_command(&edit_command);
-                }
-            }
-            Move(move_command) => {
-                if self.in_prompt() {
-                    self.command_bar.handle_move_command(&move_command);
-                } else {
-                    self.view.handle_move_command(&move_command);
-                }
-            }
+            System(Quit | Resize(_) | Dismiss) => {}
+            System(Save) => self.handle_save(),
+            System(Search) => self.handle_search(),
+            Move(command) => self.view.handle_move_command(&command),
+            Edit(command) => self.view.handle_edit_command(&command),
         }
     }
 
@@ -311,6 +273,48 @@ impl Editor {
 
     fn search(&self, pat: &str) {
         self.view.search(pat)
+    }
+
+    fn process_command_during_save(&mut self, command: Command) {
+        match command {
+            System(Quit | Resize(_) | Save | Search) => {}
+            System(Dismiss) => {
+                self.dismiss_prompt();
+                self.update_message("Save aborted");
+            }
+            Move(command) => self.command_bar.handle_move_command(&command),
+            Edit(command) => {
+                if matches!(command, command::Edit::InsertNewline) {
+                    let pat = self.command_bar.value();
+                    self.save(Some(&pat));
+                    self.dismiss_prompt();
+                } else {
+                    self.command_bar.handle_edit_command(&command);
+                }
+            }
+        }
+    }
+
+    fn process_command_during_search(&mut self, command: Command) {
+        match command {
+            System(Quit | Resize(_) | Save | Search) => {}
+            System(Dismiss) => {
+                self.dismiss_prompt();
+                self.update_message("Search aborted");
+            }
+            Move(command) => self.command_bar.handle_move_command(&command),
+            Edit(command) => {
+                if matches!(command, command::Edit::InsertNewline) {
+                    let pat = self.command_bar.value();
+                    self.search(&pat);
+                    self.message_bar
+                        .update_message(&format!("Search for: `{pat}`"));
+                    self.dismiss_prompt();
+                } else {
+                    self.command_bar.handle_edit_command(&command);
+                }
+            }
+        }
     }
 
     fn update_message(&mut self, new_message: &str) {
