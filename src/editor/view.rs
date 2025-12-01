@@ -10,19 +10,13 @@ use super::{
 };
 
 use buffer::Buffer;
+use location::Location;
+use searchinfo::SearchInfo;
 
 mod buffer;
 mod fileinfo;
-
-struct SearchInfo {
-    previous_location: Location,
-}
-
-#[derive(Default, Clone, Copy)]
-pub struct Location {
-    pub grapheme_index: usize,
-    pub line_index: usize,
-}
+mod location;
+mod searchinfo;
 
 #[derive(Default)]
 pub struct View {
