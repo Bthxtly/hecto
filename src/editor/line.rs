@@ -116,6 +116,10 @@ impl Line {
         self.fragments.len()
     }
 
+    pub fn width(&self) -> usize {
+        self.width_until(self.grapheme_count())
+    }
+
     pub fn width_until(&self, grapheme_index: usize) -> usize {
         self.fragments
             .iter()
