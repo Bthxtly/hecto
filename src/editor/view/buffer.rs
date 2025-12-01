@@ -106,9 +106,15 @@ impl Buffer {
         self.dirty = true;
     }
 
-    pub fn search(&self, query: &str) -> Option<Location> {
-        for (line_index, line) in self.lines.iter().enumerate() {
-            if let Some(grapheme_index) = line.search(query) {
+    pub fn search_from(&self, query: &str, from: &Location) -> Option<Location> {
+        for (line_index, line) in self.lines.iter().enumerate().skip(from.line_index) {
+            let from_grapheme_index = if line_index == from.line_index {
+                from.grapheme_index
+            } else {
+                0
+            };
+
+            if let Some(grapheme_index) = line.search_from(query, from_grapheme_index) {
                 return Some(Location {
                     grapheme_index,
                     line_index,
@@ -116,5 +122,71 @@ impl Buffer {
             }
         }
         None
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    fn init() -> Buffer {
+        let mut buffer = Buffer::default();
+        let string = concat!(
+            "0_234567890\n",
+            "foo345foo90\n",
+            "2_234567890\n",
+            "3_234567890\n",
+            "4_2foo67890\n",
+            "5_234567890\n",
+            "6_234567890\n",
+            "7_234bar890\n",
+            "8_234567890\n",
+            "9_234567890\n",
+        );
+        buffer.lines = string.lines().map(Line::from).collect();
+        buffer
+    }
+
+    #[test]
+    fn search_from_beginning() {
+        let buffer = init();
+        let from = Location {
+            line_index: 0,
+            grapheme_index: 0,
+        };
+        let found = Location {
+            line_index: 1,
+            grapheme_index: 0,
+        };
+        assert_eq!(buffer.search_from("foo", &from), Some(found));
+    }
+
+    #[test]
+    fn search_for_next() {
+        let buffer = init();
+        let step_right = 1;
+        let from = Location {
+            line_index: 1,
+            grapheme_index: 0 + step_right,
+        };
+        let found = Location {
+            line_index: 1,
+            grapheme_index: 6,
+        };
+        assert_eq!(buffer.search_from("foo", &from), Some(found));
+    }
+
+    #[test]
+    fn search_from_middle() {
+        let buffer = init();
+        let from = Location {
+            line_index: 3,
+            grapheme_index: 9,
+        };
+        let found = Location {
+            line_index: 4,
+            grapheme_index: 3,
+        };
+        assert_eq!(buffer.search_from("foo", &from), Some(found));
     }
 }

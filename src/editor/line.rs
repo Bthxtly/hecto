@@ -173,10 +173,23 @@ impl Line {
         self.delete(self.grapheme_count().saturating_sub(1));
     }
 
-    pub fn search(&self, query: &str) -> Option<usize> {
+    pub fn search_from(&self, query: &str, from: usize) -> Option<usize> {
+        let from_byte_idx = self.grapheme_idx_to_byte_idx(from);
         self.string
-            .find(query)
-            .map(|byte_idx| self.byte_idx_to_grapheme_idx(byte_idx))
+            .get(from_byte_idx..)
+            .and_then(|substr| substr.find(query))
+            .map(|byte_idx| self.byte_idx_to_grapheme_idx(byte_idx).saturating_add(from))
+    }
+
+    fn grapheme_idx_to_byte_idx(&self, grapheme_idx: usize) -> usize {
+        if let Some(fragment) = self.fragments.get(grapheme_idx) {
+            fragment.byte_index
+        } else {
+            #[cfg(debug_assertions)]
+            {
+                panic!("Invalid grapheme_idx passed to grapheme_idx_to_byte_idx: {grapheme_idx:?}");
+            }
+        }
     }
 
     fn byte_idx_to_grapheme_idx(&self, byte_idx: usize) -> usize {
@@ -210,9 +223,7 @@ mod test {
     fn search_for_text() {
         let s = "Löwe 老虎 Léopard Gepardi";
         let line = Line::from(s);
-        let index = line.search("pard");
-        assert_eq!(index, Some(17));
-        let location = line.byte_idx_to_grapheme_idx(index.unwrap());
-        assert_eq!(location, 11);
+        let grapheme_index = line.search_from("pard", 2);
+        assert_eq!(grapheme_index, Some(11));
     }
 }
