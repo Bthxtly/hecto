@@ -169,17 +169,26 @@ impl Line {
         self.delete(self.grapheme_count().saturating_sub(1));
     }
 
-    pub fn search(&self, pat: &str) -> Option<usize> {
-        self.string.find(pat)
+    pub fn search(&self, query: &str) -> Option<usize> {
+        self.string
+            .find(query)
+            .map(|byte_idx| self.byte_idx_to_grapheme_idx(byte_idx))
     }
 
-    fn index_to_location(&self, index: usize) -> usize {
+    fn byte_idx_to_grapheme_idx(&self, byte_idx: usize) -> usize {
         for (i, fragment) in self.fragments.iter().enumerate() {
-            if fragment.byte_index == index {
+            if fragment.byte_index >= byte_idx {
                 return i;
             }
         }
-        unreachable!()
+        #[cfg(debug_assertions)]
+        {
+            panic!("Invalid byte_idx passed to byte_idx_to_grapheme_idx: {byte_idx:?}");
+        }
+        #[cfg(not(debug_assertions))]
+        {
+            0
+        }
     }
 }
 
@@ -199,7 +208,7 @@ mod test {
         let line = Line::from(s);
         let index = line.search("pard");
         assert_eq!(index, Some(17));
-        let location = line.index_to_location(index.unwrap());
+        let location = line.byte_idx_to_grapheme_idx(index.unwrap());
         assert_eq!(location, 11);
     }
 }

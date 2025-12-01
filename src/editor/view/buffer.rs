@@ -106,9 +106,15 @@ impl Buffer {
         self.dirty = true;
     }
 
-    pub fn search(&self, pat: &str) {
-        for line in &self.lines {
-            line.search(pat);
+    pub fn search(&self, query: &str) -> Option<Location> {
+        for (line_index, line) in self.lines.iter().enumerate() {
+            if let Some(grapheme_index) = line.search(query) {
+                return Some(Location {
+                    grapheme_index,
+                    line_index,
+                });
+            }
         }
+        None
     }
 }

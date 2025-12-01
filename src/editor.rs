@@ -269,10 +269,7 @@ impl Editor {
 
     fn handle_search(&mut self) {
         self.set_prompt(PromptType::Search);
-    }
-
-    fn search(&self, pat: &str) {
-        self.view.search(pat)
+        self.view.enter_search();
     }
 
     fn process_command_during_save(&mut self, command: Command) {
@@ -298,21 +295,20 @@ impl Editor {
     fn process_command_during_search(&mut self, command: Command) {
         match command {
             System(Quit | Resize(_) | Save | Search) => {}
+            Move(command) => self.command_bar.handle_move_command(&command),
             System(Dismiss) => {
                 self.dismiss_prompt();
+                self.view.dismiss_search();
                 self.update_message("Search aborted");
             }
-            Move(command) => self.command_bar.handle_move_command(&command),
+            Edit(command::Edit::InsertNewline) => {
+                self.dismiss_prompt();
+                self.view.exit_search();
+            }
             Edit(command) => {
-                if matches!(command, command::Edit::InsertNewline) {
-                    let pat = self.command_bar.value();
-                    self.search(&pat);
-                    self.message_bar
-                        .update_message(&format!("Search for: `{pat}`"));
-                    self.dismiss_prompt();
-                } else {
-                    self.command_bar.handle_edit_command(&command);
-                }
+                self.command_bar.handle_edit_command(&command);
+                let query = self.command_bar.value();
+                self.view.search(&query);
             }
         }
     }
