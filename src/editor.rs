@@ -22,7 +22,7 @@ mod view;
 
 use command::{
     Command::{self, Edit, Move, System},
-    System::{Dismiss, Quit, Resize, Save, Search},
+    System::{Dismiss, Quit, Resize, Save, Search, SearchNext},
 };
 use commandbar::CommandBar;
 use messagebar::MessageBar;
@@ -86,9 +86,9 @@ impl Editor {
         }
 
         editor.refresh_status();
-        editor
-            .message_bar
-            .update_message("HELP: Ctrl-F = find | Ctrl-S = Save | Ctrl-T = Quit");
+        editor.message_bar.update_message(
+            "HELP: <C-f> = find | <C-n> = search next | <C-s> = Save | <C-t> = Quit",
+        );
 
         Ok(editor)
     }
@@ -218,6 +218,7 @@ impl Editor {
             System(Quit | Resize(_) | Dismiss) => {}
             System(Save) => self.handle_save(),
             System(Search) => self.handle_search(),
+            System(SearchNext) => self.handle_search_next(),
             Move(command) => self.view.handle_move_command(&command),
             Edit(command) => self.view.handle_edit_command(&command),
         }
@@ -270,11 +271,19 @@ impl Editor {
     fn handle_search(&mut self) {
         self.set_prompt(PromptType::Search);
         self.view.enter_search();
+        self.update_message("");
+    }
+
+    fn handle_search_next(&mut self) {
+        let success = self.view.search_next();
+        if !success {
+            self.update_message("Have no search query, please search for something first");
+        }
     }
 
     fn process_command_during_save(&mut self, command: Command) {
         match command {
-            System(Quit | Resize(_) | Save | Search) => {}
+            System(Quit | Resize(_) | Save | Search | SearchNext) => {}
             System(Dismiss) => {
                 self.dismiss_prompt();
                 self.update_message("Save aborted");
@@ -294,7 +303,7 @@ impl Editor {
 
     fn process_command_during_search(&mut self, command: Command) {
         match command {
-            System(Quit | Resize(_) | Save | Search) => {}
+            System(Quit | Resize(_) | Save | Search | SearchNext) => {}
             Move(command) => self.command_bar.handle_move_command(&command),
             System(Dismiss) => {
                 self.dismiss_prompt();

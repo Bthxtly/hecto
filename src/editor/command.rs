@@ -71,6 +71,7 @@ impl TryFrom<KeyEvent> for Edit {
 pub enum System {
     Save,
     Search,
+    SearchNext,
     Dismiss,
     Resize(Size),
     Quit,
@@ -88,6 +89,7 @@ impl TryFrom<KeyEvent> for System {
                 KeyCode::Char('t') => Ok(Self::Quit),
                 KeyCode::Char('s') => Ok(Self::Save),
                 KeyCode::Char('f') => Ok(Self::Search),
+                KeyCode::Char('n') => Ok(Self::SearchNext),
                 _ => Err(format!("Unknown not CONTROL+{code:?} combination")),
             }
         } else if modifiers == KeyModifiers::NONE && matches!(code, KeyCode::Esc) {

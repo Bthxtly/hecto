@@ -1,7 +1,10 @@
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
-use std::{fmt, ops::Range};
+use std::{
+    fmt,
+    ops::{Deref, Range},
+};
 
 #[derive(Debug)]
 enum GraphemeWidth {
@@ -174,6 +177,11 @@ impl Line {
     }
 
     pub fn search_from(&self, query: &str, from: usize) -> Option<usize> {
+        // skip empty line or search from right of the end
+        if self.is_empty() || self.grapheme_count() <= from {
+            return None;
+        }
+
         let from_byte_idx = self.grapheme_idx_to_byte_idx(from);
         self.string
             .get(from_byte_idx..)
@@ -212,6 +220,14 @@ impl Line {
 impl fmt::Display for Line {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.string)
+    }
+}
+
+impl Deref for Line {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.string
     }
 }
 

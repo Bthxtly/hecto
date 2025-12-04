@@ -138,8 +138,8 @@ mod test {
             "3_234567890\n",
             "4_2foo67890\n",
             "5_234567890\n",
-            "6_234567890\n",
-            "7_234bar890\n",
+            "6_234567foo\n",
+            "7_234barfoo\n",
             "8_234567890\n",
             "9_234567890\n",
         );
@@ -174,6 +174,21 @@ mod test {
             grapheme_index: 6,
         };
         assert_eq!(buffer.search_from("foo", &from), Some(found));
+    }
+
+    #[test]
+    fn search_for_next_at_end() {
+        let buffer = init();
+        let step_right = 3;
+        let from = Location {
+            line_index: 6,
+            grapheme_index: 8 + step_right,
+        };
+        let found = Location {
+            line_index: 7,
+            grapheme_index: 8,
+        };
+        assert_eq!(buffer.search_from("foo", &from), Some(found))
     }
 
     #[test]

@@ -1,4 +1,7 @@
-use std::cmp::min;
+use std::{
+    cmp::{max, min},
+    ops::Deref,
+};
 
 use super::{
     NAME, Position, Size, VERSION,
@@ -48,11 +51,13 @@ impl View {
     pub fn enter_search(&mut self) {
         self.search_info = Some(SearchInfo {
             previous_location: self.text_location,
+            query: Line::default(),
         });
     }
 
     pub fn exit_search(&mut self) {
-        self.search_info = None;
+        // do nothing at this time, since I want `search_next` method to works when not searching
+        // self.search_info = None;
     }
 
     pub fn dismiss_search(&mut self) {
@@ -64,12 +69,39 @@ impl View {
     }
 
     pub fn search(&mut self, query: &str) {
-        if query.is_empty() {
-            return;
+        if let Some(search_info) = &mut self.search_info {
+            search_info.query = Line::from(query);
         }
-        if let Some(location) = self.buffer.search_from(query, &self.text_location) {
-            self.text_location = location;
-            self.scroll_text_location_into_view();
+        self.search_from(self.text_location);
+    }
+
+    fn search_from(&mut self, from: Location) {
+        if let Some(search_info) = self.search_info.as_ref() {
+            let query = search_info.query.deref();
+            if query.is_empty() {
+                return;
+            }
+            if let Some(location) = self.buffer.search_from(query, &from) {
+                self.text_location = location;
+                self.scroll_text_location_into_view();
+            }
+        } else {
+            panic!("Why is self.search_info None 🤷");
+        }
+    }
+
+    // return false if not searched before
+    pub fn search_next(&mut self) -> bool {
+        if let Some(search_info) = self.search_info.as_ref() {
+            let step_right = max(1, search_info.query.grapheme_count());
+            let location = Location {
+                line_index: self.text_location.line_index,
+                grapheme_index: self.text_location.grapheme_index.saturating_add(step_right),
+            };
+            self.search_from(location);
+            true
+        } else {
+            false
         }
     }
 
