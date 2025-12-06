@@ -1,7 +1,4 @@
-use std::{
-    cmp::{max, min},
-    ops::Deref,
-};
+use std::cmp::{max, min};
 
 use super::{
     NAME, Position, Size, VERSION,
@@ -55,11 +52,6 @@ impl View {
         });
     }
 
-    pub fn exit_search(&mut self) {
-        // do nothing at this time, since I want `search_next` method to works when not searching
-        // self.search_info = None;
-    }
-
     pub fn dismiss_search(&mut self) {
         if let Some(search_info) = &self.search_info {
             self.text_location = search_info.previous_location;
@@ -77,7 +69,7 @@ impl View {
 
     fn search_from(&mut self, from: Location) {
         if let Some(search_info) = self.search_info.as_ref() {
-            let query = search_info.query.deref();
+            let query = &*search_info.query;
             if query.is_empty() {
                 return;
             }
@@ -85,8 +77,6 @@ impl View {
                 self.text_location = location;
                 self.scroll_text_location_into_view();
             }
-        } else {
-            panic!("Why is self.search_info None 🤷");
         }
     }
 
@@ -186,8 +176,8 @@ impl View {
     pub fn handle_move_command(&mut self, command: &Move) {
         let Size { height, .. } = self.size;
 
-        // This match moves the positon, but does not check for all boundaries.
-        // The final boundarline checking happens after the match statement.
+        // This match moves the position, but does not check for all boundaries.
+        // The final boundary checking happens after the match statement.
         match command {
             Move::Up => self.move_up(1),
             Move::Down => self.move_down(1),
@@ -238,7 +228,6 @@ impl View {
         *grapheme_index = grapheme_index.saturating_add(step);
 
         if *grapheme_index > length {
-            self.move_to_start_of_line();
             self.move_down(1);
         } else {
             self.snap_to_valid_grapheme();
@@ -273,6 +262,7 @@ impl View {
     // ensure self.location.grapheme_index points to a valid grapheme index by snapping it
     // to the left most grapheme if appropriate
     // do not trigger scolling
+    // line_index can be exactly self.buffer.height() since sometimes we want to modify below buffer
     fn snap_to_valid_line(&mut self) {
         self.text_location.line_index = min(self.text_location.line_index, self.buffer.height());
     }
@@ -297,9 +287,7 @@ impl View {
             false
         };
 
-        if !self.needs_redraw() {
-            self.set_needs_redraw(offset_changed);
-        }
+        self.set_needs_redraw(offset_changed || self.needs_redraw());
     }
 
     fn scroll_horizontally(&mut self, to: usize) {
@@ -316,9 +304,7 @@ impl View {
             false
         };
 
-        if !self.needs_redraw() {
-            self.set_needs_redraw(offset_changed);
-        }
+        self.set_needs_redraw(offset_changed || self.needs_redraw());
     }
 
     fn render_line(at: usize, line_text: &str) -> Result<(), std::io::Error> {
@@ -364,7 +350,7 @@ impl UIComponent for View {
         // we allow this since we don't care if our welcome message is put _exactly_ in the middle.
         // it's allowed to be a bit up or down
         #[allow(clippy::integer_division)]
-        let vertical_center = height / 3;
+        let vertical_center = height / 3; // a good position to put our welcome message
         let scroll_top = self.scroll_offset.row;
 
         for current_row in origin_row..end_y {

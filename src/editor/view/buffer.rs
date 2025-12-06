@@ -188,7 +188,7 @@ mod test {
             line_index: 7,
             grapheme_index: 8,
         };
-        assert_eq!(buffer.search_from("foo", &from), Some(found))
+        assert_eq!(buffer.search_from("foo", &from), Some(found));
     }
 
     #[test]

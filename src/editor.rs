@@ -312,7 +312,6 @@ impl Editor {
             }
             Edit(command::Edit::InsertNewline) => {
                 self.dismiss_prompt();
-                self.view.exit_search();
             }
             Edit(command) => {
                 self.command_bar.handle_edit_command(&command);
