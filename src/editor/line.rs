@@ -23,7 +23,7 @@ impl GraphemeWidth {
 
 #[derive(Debug)]
 struct TextFragment {
-    byte_index: usize,
+    byte_idx: usize,
     grapheme: String,
     rendered_width: GraphemeWidth,
     replacement: Option<char>,
@@ -46,7 +46,7 @@ impl Line {
     }
 
     fn str_to_fragments(line_str: &str) -> Vec<TextFragment> {
-        let grapheme_to_fragment = |(byte_index, grapheme): (usize, &str)| {
+        let grapheme_to_fragment = |(byte_idx, grapheme): (usize, &str)| {
             let (replacement, rendered_width) = Self::get_replacement_character(grapheme)
                 .map_or_else(
                     || {
@@ -61,7 +61,7 @@ impl Line {
                 );
 
             TextFragment {
-                byte_index,
+                byte_idx,
                 grapheme: grapheme.to_string(),
                 rendered_width,
                 replacement,
@@ -123,10 +123,10 @@ impl Line {
         self.width_until(self.grapheme_count())
     }
 
-    pub fn width_until(&self, grapheme_index: usize) -> usize {
+    pub fn width_until(&self, grapheme_idx: usize) -> usize {
         self.fragments
             .iter()
-            .take(grapheme_index)
+            .take(grapheme_idx)
             .map(|fragment| match fragment.rendered_width {
                 GraphemeWidth::Half => 1,
                 GraphemeWidth::Full => 2,
@@ -140,7 +140,7 @@ impl Line {
 
     pub fn insert_char(&mut self, ch: char, at: usize) {
         if let Some(fragment) = self.fragments.get(at) {
-            self.string.insert(fragment.byte_index, ch);
+            self.string.insert(fragment.byte_idx, ch);
         } else {
             self.string.push(ch);
         }
@@ -149,7 +149,7 @@ impl Line {
 
     pub fn delete(&mut self, at: usize) {
         if let Some(fragment) = self.fragments.get(at) {
-            let start = fragment.byte_index;
+            let start = fragment.byte_idx;
             let end = start.saturating_add(fragment.grapheme.len());
             self.string.drain(start..end);
         }
@@ -191,7 +191,7 @@ impl Line {
 
     fn grapheme_idx_to_byte_idx(&self, grapheme_idx: usize) -> usize {
         if let Some(fragment) = self.fragments.get(grapheme_idx) {
-            fragment.byte_index
+            fragment.byte_idx
         } else {
             #[cfg(debug_assertions)]
             {
@@ -202,7 +202,7 @@ impl Line {
 
     fn byte_idx_to_grapheme_idx(&self, byte_idx: usize) -> usize {
         for (i, fragment) in self.fragments.iter().enumerate() {
-            if fragment.byte_index >= byte_idx {
+            if fragment.byte_idx >= byte_idx {
                 return i;
             }
         }
@@ -239,7 +239,7 @@ mod test {
     fn search_for_text() {
         let s = "Löwe 老虎 Léopard Gepardi";
         let line = Line::from(s);
-        let grapheme_index = line.search_from("pard", 2);
-        assert_eq!(grapheme_index, Some(11));
+        let grapheme_idx = line.search_from("pard", 2);
+        assert_eq!(grapheme_idx, Some(11));
     }
 }

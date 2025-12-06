@@ -85,8 +85,8 @@ impl View {
         if let Some(search_info) = self.search_info.as_ref() {
             let step_right = max(1, search_info.query.grapheme_count());
             let location = Location {
-                line_index: self.text_location.line_index,
-                grapheme_index: self.text_location.grapheme_index.saturating_add(step_right),
+                line_idx: self.text_location.line_idx,
+                grapheme_idx: self.text_location.grapheme_idx.saturating_add(step_right),
             };
             self.search_from(location);
             true
@@ -98,7 +98,7 @@ impl View {
     pub fn get_status(&self) -> DocumentStatus {
         DocumentStatus {
             total_lines: self.buffer.height(),
-            current_line_index: self.text_location.line_index,
+            current_line_idx: self.text_location.line_idx,
             is_modified: self.buffer.dirty,
             filename: format!("{}", self.buffer.file_info),
         }
@@ -110,9 +110,9 @@ impl View {
     }
 
     fn text_location_to_position(&self) -> Position {
-        let row = self.text_location.line_index;
+        let row = self.text_location.line_idx;
         let col = self.buffer.lines.get(row).map_or(0, |line| {
-            line.width_until(self.text_location.grapheme_index)
+            line.width_until(self.text_location.grapheme_idx)
         });
 
         Position { row, col }
@@ -132,7 +132,7 @@ impl View {
         let old_len = self
             .buffer
             .lines
-            .get(self.text_location.line_index)
+            .get(self.text_location.line_idx)
             .map_or(0, Line::grapheme_count);
 
         self.buffer.insert_char(ch, &self.text_location);
@@ -140,7 +140,7 @@ impl View {
         let new_len = self
             .buffer
             .lines
-            .get(self.text_location.line_index)
+            .get(self.text_location.line_idx)
             .map_or(0, Line::grapheme_count);
 
         if new_len.saturating_sub(old_len) > 0 {
@@ -166,7 +166,7 @@ impl View {
 
     fn delete_backward(&mut self) {
         // do nothing if at top-left corner
-        if self.text_location.line_index == 0 && self.text_location.grapheme_index == 0 {
+        if self.text_location.line_idx == 0 && self.text_location.grapheme_idx == 0 {
             return;
         }
         self.handle_move_command(&Move::Left);
@@ -193,41 +193,41 @@ impl View {
     }
 
     fn move_up(&mut self, step: usize) {
-        let line_index = &mut self.text_location.line_index;
-        *line_index = line_index.saturating_sub(step);
+        let line_idx = &mut self.text_location.line_idx;
+        *line_idx = line_idx.saturating_sub(step);
         self.snap_to_valid_grapheme();
     }
 
     fn move_down(&mut self, step: usize) {
-        let line_index = &mut self.text_location.line_index;
-        *line_index = line_index.saturating_add(step);
+        let line_idx = &mut self.text_location.line_idx;
+        *line_idx = line_idx.saturating_add(step);
         self.snap_to_valid_grapheme();
         self.snap_to_valid_line();
     }
 
     fn move_left(&mut self, step: usize) {
-        let grapheme_index = &mut self.text_location.grapheme_index;
+        let grapheme_idx = &mut self.text_location.grapheme_idx;
 
-        if *grapheme_index == 0 && self.text_location.line_index > 0 {
+        if *grapheme_idx == 0 && self.text_location.line_idx > 0 {
             self.move_up(1);
             self.move_to_end_of_line();
         } else {
-            *grapheme_index = grapheme_index.saturating_sub(step);
+            *grapheme_idx = grapheme_idx.saturating_sub(step);
             self.snap_to_valid_grapheme();
         }
     }
 
     fn move_right(&mut self, step: usize) {
-        let grapheme_index = &mut self.text_location.grapheme_index;
+        let grapheme_idx = &mut self.text_location.grapheme_idx;
         let length = self
             .buffer
             .lines
-            .get(self.text_location.line_index)
+            .get(self.text_location.line_idx)
             .map_or(0, Line::grapheme_count);
 
-        *grapheme_index = grapheme_index.saturating_add(step);
+        *grapheme_idx = grapheme_idx.saturating_add(step);
 
-        if *grapheme_index > length {
+        if *grapheme_idx > length {
             self.move_down(1);
         } else {
             self.snap_to_valid_grapheme();
@@ -235,36 +235,36 @@ impl View {
     }
 
     fn move_to_start_of_line(&mut self) {
-        self.text_location.grapheme_index = 0;
+        self.text_location.grapheme_idx = 0;
     }
 
     fn move_to_end_of_line(&mut self) {
-        self.text_location.grapheme_index = self
+        self.text_location.grapheme_idx = self
             .buffer
             .lines
-            .get(self.text_location.line_index)
+            .get(self.text_location.line_idx)
             .map_or(0, Line::grapheme_count);
     }
 
-    // ensure self.location.grapheme_index points to a valid grapheme index by snapping it
+    // ensure self.location.grapheme_idx points to a valid grapheme idx by snapping it
     // to the left most grapheme if appropriate
     // do not trigger scolling
     fn snap_to_valid_grapheme(&mut self) {
-        self.text_location.grapheme_index = self
+        self.text_location.grapheme_idx = self
             .buffer
             .lines
-            .get(self.text_location.line_index)
+            .get(self.text_location.line_idx)
             .map_or(0, |line| {
-                min(line.grapheme_count(), self.text_location.grapheme_index)
+                min(line.grapheme_count(), self.text_location.grapheme_idx)
             });
     }
 
-    // ensure self.location.grapheme_index points to a valid grapheme index by snapping it
+    // ensure self.location.grapheme_idx points to a valid grapheme idx by snapping it
     // to the left most grapheme if appropriate
     // do not trigger scolling
-    // line_index can be exactly self.buffer.height() since sometimes we want to modify below buffer
+    // line_idx can be exactly self.buffer.height() since sometimes we want to modify below buffer
     fn snap_to_valid_line(&mut self) {
-        self.text_location.line_index = min(self.text_location.line_index, self.buffer.height());
+        self.text_location.line_idx = min(self.text_location.line_idx, self.buffer.height());
     }
 
     fn scroll_text_location_into_view(&mut self) {
@@ -354,7 +354,7 @@ impl UIComponent for View {
         let scroll_top = self.scroll_offset.row;
 
         for current_row in origin_row..end_y {
-            // to get the correct line index, we have to take current_row (the absolute row on
+            // to get the correct line idx, we have to take current_row (the absolute row on
             // screen), subtract origin_row to get the current row relative to the view (ranging from
             // 0 to self.size.height) and add the scroll offset
             let line_idx = current_row
