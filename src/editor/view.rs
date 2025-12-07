@@ -350,10 +350,7 @@ impl UIComponent for View {
         let Size { height, width } = self.size;
         let end_y = origin_row.saturating_add(height);
 
-        // we allow this since we don't care if our welcome message is put _exactly_ in the middle.
-        // it's allowed to be a bit up or down
-        #[allow(clippy::integer_division)]
-        let vertical_center = height / 3; // a good position to put our welcome message
+        let top_third = height.div_ceil(3); // a good position to put our welcome message
         let scroll_top = self.scroll_offset.row;
 
         for current_row in origin_row..end_y {
@@ -368,7 +365,7 @@ impl UIComponent for View {
                 let right = self.scroll_offset.col.saturating_add(width);
                 let truncated_line = &line.get_visible_graphemes(left..right);
                 Self::render_line(current_row, truncated_line)?;
-            } else if (current_row == vertical_center) && self.buffer.is_empty() {
+            } else if (current_row == top_third) && self.buffer.is_empty() {
                 // render welcome message if no file is opened
                 Self::render_line(current_row, &Self::build_welcome_message(width))?;
             } else {
