@@ -200,6 +200,10 @@ impl Line {
             {
                 panic!("Invalid grapheme_idx passed to grapheme_idx_to_byte_idx: {grapheme_idx:?}");
             }
+            #[cfg(not(debug_assertions))]
+            {
+                0
+            }
         }
     }
 
