@@ -5,6 +5,7 @@ use super::{
     command::{Edit, Move},
     documentstatus::DocumentStatus,
     line::Line,
+    position::{Col, Row},
     terminal::Terminal,
     uicomponent::UIComponent,
 };
@@ -111,9 +112,11 @@ impl View {
 
     fn text_location_to_position(&self) -> Position {
         let row = self.text_location.line_idx;
-        let col = self.buffer.lines.get(row).map_or(0, |line| {
-            line.width_until(self.text_location.grapheme_idx)
-        });
+        let col = self
+            .buffer
+            .lines
+            .get(row)
+            .map_or(0, |line| line.width_until(self.text_location.grapheme_idx));
 
         Position { row, col }
     }
@@ -273,7 +276,7 @@ impl View {
         self.scroll_horizontally(col);
     }
 
-    fn scroll_vertically(&mut self, to: usize) {
+    fn scroll_vertically(&mut self, to: Row) {
         let Position { row, .. } = &mut self.scroll_offset;
         let Size { height, .. } = self.size;
 
@@ -290,7 +293,7 @@ impl View {
         self.set_needs_redraw(offset_changed || self.needs_redraw());
     }
 
-    fn scroll_horizontally(&mut self, to: usize) {
+    fn scroll_horizontally(&mut self, to: Col) {
         let Position { col, .. } = &mut self.scroll_offset;
         let Size { width, .. } = self.size;
 
