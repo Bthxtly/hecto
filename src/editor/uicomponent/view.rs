@@ -1,14 +1,14 @@
 use std::cmp::{max, min};
 
-use super::{
+use super::super::{
     NAME, Position, Size, VERSION,
     command::{Edit, Move},
     documentstatus::DocumentStatus,
     line::Line,
     position::{Col, Row},
     terminal::Terminal,
-    uicomponent::UIComponent,
 };
+use super::uicomponent::UIComponent;
 
 use buffer::Buffer;
 use location::Location;

@@ -9,29 +9,21 @@ use crossterm::event::{
 };
 
 mod command;
-mod commandbar;
 mod documentstatus;
 mod line;
-mod messagebar;
 mod position;
 mod size;
-mod statusbar;
 mod terminal;
 mod uicomponent;
-mod view;
 
 use command::{
     Command::{self, Edit, Move, System},
     System::{Dismiss, Quit, Resize, Save, Search, SearchNext},
 };
-use commandbar::CommandBar;
-use messagebar::MessageBar;
 use position::Position;
 use size::Size;
-use statusbar::StatusBar;
 use terminal::Terminal;
-use uicomponent::UIComponent;
-use view::View;
+use uicomponent::{CommandBar, MessageBar, StatusBar, UIComponent, View};
 
 pub const NAME: &str = env!("CARGO_PKG_NAME");
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
