@@ -7,7 +7,7 @@ use super::super::{
     terminal::Terminal,
 };
 
-use super::uicomponent::UIComponent;
+use super::UIComponent;
 
 #[derive(Default)]
 pub struct CommandBar {

@@ -1,5 +1,5 @@
 use super::super::{Size, documentstatus::DocumentStatus, terminal::Terminal};
-use super::uicomponent::UIComponent;
+use super::UIComponent;
 
 #[derive(Default)]
 pub struct StatusBar {

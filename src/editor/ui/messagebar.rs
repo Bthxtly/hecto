@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 use crate::editor::terminal::Terminal;
 
 use super::super::Size;
-use super::uicomponent::UIComponent;
+use super::UIComponent;
 
 const DEFAULT_DURATION: Duration = Duration::new(5, 0);
 

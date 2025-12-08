@@ -8,7 +8,7 @@ use super::super::{
     position::{Col, Row},
     terminal::Terminal,
 };
-use super::uicomponent::UIComponent;
+use super::UIComponent;
 
 use buffer::Buffer;
 use location::Location;

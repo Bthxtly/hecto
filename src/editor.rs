@@ -14,7 +14,7 @@ mod line;
 mod position;
 mod size;
 mod terminal;
-mod uicomponent;
+mod ui;
 
 use command::{
     Command::{self, Edit, Move, System},
@@ -23,7 +23,7 @@ use command::{
 use position::Position;
 use size::Size;
 use terminal::Terminal;
-use uicomponent::{CommandBar, MessageBar, StatusBar, UIComponent, View};
+use ui::{CommandBar, MessageBar, StatusBar, UIComponent, View};
 
 pub const NAME: &str = env!("CARGO_PKG_NAME");
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
