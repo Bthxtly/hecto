@@ -77,7 +77,7 @@ impl Line {
         let mut result = String::new();
         let mut current_pos = 0;
         for fragment in &self.fragments {
-            let fragment_end = fragment.rendered_width.saturating_add(current_pos);
+            let fragment_end = usize::from(fragment.rendered_width).saturating_add(current_pos);
             if current_pos >= end {
                 break;
             }
