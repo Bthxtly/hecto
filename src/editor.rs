@@ -1,11 +1,10 @@
-use std::{
-    env,
-    panic::{set_hook, take_hook},
-};
-
 use crossterm::event::{
     Event::{self, Key},
     KeyEvent, KeyEventKind, read,
+};
+use std::{
+    env,
+    panic::{set_hook, take_hook},
 };
 
 mod command;

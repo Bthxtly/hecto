@@ -1,16 +1,14 @@
 mod grapheme_width;
 mod text_fragment;
 
-use unicode_segmentation::UnicodeSegmentation;
-use unicode_width::UnicodeWidthStr;
-
+use grapheme_width::GraphemeWidth;
 use std::{
     fmt,
     ops::{Deref, Range},
 };
-
-use grapheme_width::GraphemeWidth;
 use text_fragment::TextFragment;
+use unicode_segmentation::UnicodeSegmentation;
+use unicode_width::UnicodeWidthStr;
 
 type GraphemeIdx = usize;
 type ByteIdx = usize;

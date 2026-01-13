@@ -1,9 +1,8 @@
+use super::size::Size;
 use crossterm::event::Event;
 pub use edit::Edit;
 pub use r#move::Move;
 pub use system::System;
-
-use super::size::Size;
 
 mod edit;
 mod r#move;

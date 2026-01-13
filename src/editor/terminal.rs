@@ -1,3 +1,4 @@
+use super::{Position, Size};
 use crossterm::cursor::{Hide, MoveTo, Show};
 use crossterm::style::{Attribute, Print};
 use crossterm::terminal::{
@@ -5,10 +6,7 @@ use crossterm::terminal::{
     SetTitle, disable_raw_mode, enable_raw_mode, size,
 };
 use crossterm::{Command, queue};
-
 use std::io::{Write, stdout};
-
-use super::{Position, Size};
 
 /// Represents the Terminal.
 /// Edge Case for platforms where `usize` < `u16`:

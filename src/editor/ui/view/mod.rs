@@ -1,5 +1,3 @@
-use std::cmp::{max, min};
-
 use super::super::{
     NAME, Position, Size, VERSION,
     command::{Edit, Move},
@@ -9,10 +7,10 @@ use super::super::{
     terminal::Terminal,
 };
 use super::UIComponent;
-
 use buffer::Buffer;
 use location::Location;
 use searchinfo::SearchInfo;
+use std::cmp::{max, min};
 
 mod buffer;
 mod fileinfo;

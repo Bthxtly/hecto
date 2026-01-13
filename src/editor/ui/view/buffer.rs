@@ -1,10 +1,9 @@
-use std::fs::File;
-use std::fs::read_to_string;
-use std::io::Write;
-
 use super::Location;
 use super::fileinfo::FileInfo;
 use crate::editor::line::Line;
+use std::fs::File;
+use std::fs::read_to_string;
+use std::io::Write;
 
 #[derive(Default)]
 pub struct Buffer {
@@ -81,9 +80,7 @@ impl Buffer {
     pub fn delete(&mut self, at: &Location) {
         let height = self.height();
         if let Some(line) = self.lines.get(at.line_idx) {
-            if at.line_idx < height.saturating_sub(1)
-                && at.grapheme_idx == line.grapheme_count()
-            {
+            if at.line_idx < height.saturating_sub(1) && at.grapheme_idx == line.grapheme_count() {
                 // join with the line below if at the end of line and there's line below
                 let next_line = self.lines.remove(at.line_idx.saturating_add(1));
                 self.lines[at.line_idx].append(&next_line);
