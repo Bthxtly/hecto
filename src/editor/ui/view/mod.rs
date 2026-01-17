@@ -288,7 +288,7 @@ impl View {
             false
         };
 
-        self.set_needs_redraw(offset_changed || self.needs_redraw());
+        self.set_needs_redraw(offset_changed || self.get_needs_redraw());
     }
 
     fn scroll_horizontally(&mut self, to: Col) {
@@ -305,7 +305,7 @@ impl View {
             false
         };
 
-        self.set_needs_redraw(offset_changed || self.needs_redraw());
+        self.set_needs_redraw(offset_changed || self.get_needs_redraw());
     }
 
     fn render_line(at: usize, line_text: &str) -> Result<(), std::io::Error> {
@@ -335,7 +335,7 @@ impl UIComponent for View {
         self.needs_redraw = value;
     }
 
-    fn needs_redraw(&self) -> bool {
+    fn get_needs_redraw(&self) -> bool {
         self.needs_redraw
     }
 

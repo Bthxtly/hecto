@@ -58,7 +58,7 @@ impl UIComponent for CommandBar {
         self.needs_redraw = value;
     }
 
-    fn needs_redraw(&self) -> bool {
+    fn get_needs_redraw(&self) -> bool {
         self.needs_redraw
     }
 

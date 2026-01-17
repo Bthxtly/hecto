@@ -5,7 +5,7 @@ pub trait UIComponent {
     fn set_needs_redraw(&mut self, value: bool);
 
     // determins if a component needs to be redrawn or not
-    fn needs_redraw(&self) -> bool;
+    fn get_needs_redraw(&self) -> bool;
 
     // updates the size and marks as redraw-needed
     fn resize(&mut self, size: Size) {
@@ -18,7 +18,7 @@ pub trait UIComponent {
 
     // draw this component if it's visible and in need of redrawing
     fn render(&mut self, origin_row: usize) {
-        if !self.needs_redraw() {
+        if !self.get_needs_redraw() {
             return;
         }
 
