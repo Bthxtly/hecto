@@ -20,7 +20,9 @@ pub struct Line {
 }
 
 impl Line {
+    // build a `Line` from a string without \n
     pub fn from(line_str: &str) -> Self {
+        debug_assert!(line_str.is_empty() || line_str.lines().count() == 1);
         let source = line_str.to_string();
         let fragments = Self::str_to_fragments(line_str);
         Self {
@@ -118,11 +120,14 @@ impl Line {
             .sum()
     }
 
+    // region: edit
     fn rebuild_fragments(&mut self) {
         self.fragments = Self::str_to_fragments(&self.string);
     }
 
+    // insert a character into the line, or appends it at the end if `at == grapheme_count + 1`
     pub fn insert_char(&mut self, ch: char, at: GraphemeIdx) {
+        debug_assert!(at.saturating_sub(1) <= self.grapheme_count());
         if let Some(fragment) = self.fragments.get(at) {
             self.string.insert(fragment.byte_idx, ch);
         } else {
@@ -131,7 +136,9 @@ impl Line {
         self.rebuild_fragments();
     }
 
+    // delete the character at `at`
     pub fn delete(&mut self, at: GraphemeIdx) {
+        debug_assert!(at <= self.grapheme_count());
         if let Some(fragment) = self.fragments.get(at) {
             let start = fragment.byte_idx;
             let end = start.saturating_add(fragment.grapheme.len());
@@ -159,50 +166,93 @@ impl Line {
     pub fn delete_last(&mut self) {
         self.delete(self.grapheme_count().saturating_sub(1));
     }
+    // endregion
 
-    pub fn search_from(&self, query: &str, from: GraphemeIdx) -> Option<GraphemeIdx> {
+    // region: search
+    pub fn search_forward(
+        &self,
+        query: &str,
+        from_grapheme_idx: GraphemeIdx,
+    ) -> Option<GraphemeIdx> {
         // skip empty line or search from right of the end
-        if self.is_empty() || self.grapheme_count() <= from {
+        if self.is_empty() || self.grapheme_count() <= from_grapheme_idx {
             return None;
         }
 
-        let from_byte_idx = self.grapheme_idx_to_byte_idx(from);
+        let from_byte_idx = self.grapheme_idx_to_byte_idx(from_grapheme_idx);
         self.string
             .get(from_byte_idx..)
             .and_then(|substr| substr.find(query))
-            .map(|byte_idx| self.byte_idx_to_grapheme_idx(byte_idx).saturating_add(from))
+            .map(|byte_idx| {
+                self.byte_idx_to_grapheme_idx(byte_idx)
+                    .saturating_add(from_grapheme_idx)
+            })
     }
 
-    fn grapheme_idx_to_byte_idx(&self, grapheme_idx: GraphemeIdx) -> ByteIdx {
-        if let Some(fragment) = self.fragments.get(grapheme_idx) {
-            fragment.byte_idx
-        } else {
-            #[cfg(debug_assertions)]
-            {
-                panic!("Invalid grapheme_idx passed to grapheme_idx_to_byte_idx: {grapheme_idx:?}");
-            }
-            #[cfg(not(debug_assertions))]
-            {
-                0
-            }
+    pub fn search_backward(
+        &self,
+        query: &str,
+        from_grapheme_idx: GraphemeIdx,
+    ) -> Option<GraphemeIdx> {
+        // skip empty line or search from right of the end
+        if self.is_empty() || self.grapheme_count() <= from_grapheme_idx {
+            return None;
         }
+
+        let from_byte_idx = self.grapheme_idx_to_byte_idx(from_grapheme_idx);
+        self.string
+            .get(from_byte_idx..)
+            .and_then(|substr| substr.find(query))
+            .map(|byte_idx| {
+                self.byte_idx_to_grapheme_idx(byte_idx)
+                    .saturating_add(from_grapheme_idx)
+            })
     }
 
+    // get the grapheme index from byte
     fn byte_idx_to_grapheme_idx(&self, byte_idx: ByteIdx) -> GraphemeIdx {
-        for (i, fragment) in self.fragments.iter().enumerate() {
-            if fragment.byte_idx >= byte_idx {
-                return i;
-            }
-        }
-        #[cfg(debug_assertions)]
-        {
-            panic!("Invalid byte_idx passed to byte_idx_to_grapheme_idx: {byte_idx:?}");
-        }
-        #[cfg(not(debug_assertions))]
-        {
-            0
-        }
+        debug_assert!(byte_idx <= self.string.len());
+        self.fragments
+            .iter()
+            .position(|fragment| fragment.byte_idx >= byte_idx)
+            .map_or_else(
+                || {
+                    #[cfg(debug_assertions)]
+                    {
+                        panic!("Invalid byte_idx passed to byte_idx_to_grapheme_idx: {byte_idx:?}");
+                    }
+                    #[cfg(not(debug_assertions))]
+                    {
+                        0
+                    }
+                },
+                |grapheme_idx| grapheme_idx,
+            )
     }
+
+    // get the start byte from grapheme index
+    fn grapheme_idx_to_byte_idx(&self, grapheme_idx: GraphemeIdx) -> ByteIdx {
+        debug_assert!(grapheme_idx <= self.grapheme_count());
+        if grapheme_idx == 0 || self.grapheme_count() == 0 {
+            return 0;
+        }
+        self.fragments.get(grapheme_idx).map_or_else(
+            || {
+                #[cfg(debug_assertions)]
+                {
+                    panic!(
+                        "Invalid grapheme_idx passed to grapheme_idx_to_byte_idx: {grapheme_idx:?}"
+                    );
+                }
+                #[cfg(not(debug_assertions))]
+                {
+                    0
+                }
+            },
+            |fragment| fragment.byte_idx,
+        )
+    }
+    // endregion
 }
 
 impl fmt::Display for Line {
@@ -227,7 +277,7 @@ mod test {
     fn search_for_text() {
         let s = "Löwe 老虎 Léopard Gepardi";
         let line = Line::from(s);
-        let grapheme_idx = line.search_from("pard", 2);
+        let grapheme_idx = line.search_forward("pard", 2);
         assert_eq!(grapheme_idx, Some(11));
     }
 }

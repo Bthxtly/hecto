@@ -31,6 +31,19 @@ impl Buffer {
         }
     }
 
+    pub const fn is_file_loaded(&self) -> bool {
+        self.file_info.has_path()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.lines.is_empty()
+    }
+
+    pub fn get_height(&self) -> usize {
+        self.lines.len()
+    }
+
+    // region: save
     pub fn save_as(&mut self, filename: &str) -> Result<(), std::io::Error> {
         let file_info = FileInfo::from(filename);
         self.save_to_file(&file_info)?;
@@ -55,19 +68,9 @@ impl Buffer {
 
         Ok(())
     }
+    // endregion
 
-    pub const fn is_file_loaded(&self) -> bool {
-        self.file_info.has_path()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.lines.is_empty()
-    }
-
-    pub fn height(&self) -> usize {
-        self.lines.len()
-    }
-
+    // region: edit
     pub fn insert_char(&mut self, ch: char, at: &Location) {
         if let Some(line) = self.lines.get_mut(at.line_idx) {
             line.insert_char(ch, at.grapheme_idx);
@@ -78,7 +81,7 @@ impl Buffer {
     }
 
     pub fn delete(&mut self, at: &Location) {
-        let height = self.height();
+        let height = self.get_height();
         if let Some(line) = self.lines.get(at.line_idx) {
             if at.line_idx < height.saturating_sub(1) && at.grapheme_idx == line.grapheme_count() {
                 // join with the line below if at the end of line and there's line below
@@ -102,8 +105,10 @@ impl Buffer {
         }
         self.dirty = true;
     }
+    // endregion
 
-    pub fn search_from(&self, query: &str, from: &Location) -> Option<Location> {
+    // region: search
+    pub fn search_forward(&self, query: &str, from: &Location) -> Option<Location> {
         for (line_idx, line) in self.lines.iter().enumerate().skip(from.line_idx) {
             let from_grapheme_idx = if line_idx == from.line_idx {
                 from.grapheme_idx
@@ -111,7 +116,7 @@ impl Buffer {
                 0
             };
 
-            if let Some(grapheme_idx) = line.search_from(query, from_grapheme_idx) {
+            if let Some(grapheme_idx) = line.search_forward(query, from_grapheme_idx) {
                 return Some(Location {
                     grapheme_idx,
                     line_idx,
@@ -120,6 +125,25 @@ impl Buffer {
         }
         None
     }
+
+    pub fn search_backward(&self, query: &str, from: &Location) -> Option<Location> {
+        for (line_idx, line) in self.lines.iter().enumerate().skip(from.line_idx) {
+            let from_grapheme_idx = if line_idx == from.line_idx {
+                from.grapheme_idx
+            } else {
+                0
+            };
+
+            if let Some(grapheme_idx) = line.search_forward(query, from_grapheme_idx) {
+                return Some(Location {
+                    grapheme_idx,
+                    line_idx,
+                });
+            }
+        }
+        None
+    }
+    // endregion
 }
 
 #[cfg(test)]
@@ -155,7 +179,7 @@ mod test {
             line_idx: 1,
             grapheme_idx: 0,
         };
-        assert_eq!(buffer.search_from("foo", &from), Some(found));
+        assert_eq!(buffer.search_forward("foo", &from), Some(found));
     }
 
     #[test]
@@ -164,13 +188,14 @@ mod test {
         let step_right = 1;
         let from = Location {
             line_idx: 1,
+            #[allow(clippy::identity_op)]
             grapheme_idx: 0 + step_right,
         };
         let found = Location {
             line_idx: 1,
             grapheme_idx: 6,
         };
-        assert_eq!(buffer.search_from("foo", &from), Some(found));
+        assert_eq!(buffer.search_forward("foo", &from), Some(found));
     }
 
     #[test]
@@ -185,7 +210,7 @@ mod test {
             line_idx: 7,
             grapheme_idx: 8,
         };
-        assert_eq!(buffer.search_from("foo", &from), Some(found));
+        assert_eq!(buffer.search_forward("foo", &from), Some(found));
     }
 
     #[test]
@@ -199,6 +224,6 @@ mod test {
             line_idx: 4,
             grapheme_idx: 3,
         };
-        assert_eq!(buffer.search_from("foo", &from), Some(found));
+        assert_eq!(buffer.search_forward("foo", &from), Some(found));
     }
 }

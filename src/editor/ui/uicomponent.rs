@@ -29,6 +29,10 @@ pub trait UIComponent {
                 {
                     panic!("Could not render component: {err:?}");
                 }
+                #[cfg(not(debug_assertions))]
+                {
+                    let _ = err;
+                }
             }
         }
     }
