@@ -109,13 +109,26 @@ impl Buffer {
 
     // region: search
     pub fn search_forward(&self, query: &str, from: &Location) -> Option<Location> {
-        for (line_idx, line) in self.lines.iter().enumerate().skip(from.line_idx) {
-            let from_grapheme_idx = if line_idx == from.line_idx {
+        if query.is_empty() {
+            return None;
+        }
+
+        let mut is_first = true;
+        let len = self.lines.len();
+        for (line_idx, line) in self
+            .lines
+            .iter()
+            .enumerate()
+            .cycle() // makes the iterator endless
+            .skip(from.line_idx) // taking one more, to search the current line twice
+            .take(len.saturating_add(1))
+        {
+            let from_grapheme_idx = if is_first {
+                is_first = false;
                 from.grapheme_idx
             } else {
                 0
             };
-
             if let Some(grapheme_idx) = line.search_forward(query, from_grapheme_idx) {
                 return Some(Location {
                     grapheme_idx,
@@ -127,14 +140,28 @@ impl Buffer {
     }
 
     pub fn search_backward(&self, query: &str, from: &Location) -> Option<Location> {
-        for (line_idx, line) in self.lines.iter().enumerate().skip(from.line_idx) {
-            let from_grapheme_idx = if line_idx == from.line_idx {
+        if query.is_empty() {
+            return None;
+        }
+
+        let mut is_first = true;
+        let len = self.lines.len();
+        for (line_idx, line) in self
+            .lines
+            .iter()
+            .enumerate()
+            .rev()
+            .cycle()
+            .skip(len.saturating_sub(from.line_idx).saturating_sub(1))
+            .take(len.saturating_add(1))
+        {
+            let from_grapheme_idx = if is_first {
+                is_first = false;
                 from.grapheme_idx
             } else {
-                0
+                line.grapheme_count()
             };
-
-            if let Some(grapheme_idx) = line.search_forward(query, from_grapheme_idx) {
+            if let Some(grapheme_idx) = line.search_backward(query, from_grapheme_idx) {
                 return Some(Location {
                     grapheme_idx,
                     line_idx,
@@ -225,5 +252,19 @@ mod test {
             grapheme_idx: 3,
         };
         assert_eq!(buffer.search_forward("foo", &from), Some(found));
+    }
+
+    #[test]
+    fn search_previous() {
+        let buffer = init();
+        let from = Location {
+            line_idx: 9,
+            grapheme_idx: 10,
+        };
+        let found = Location {
+            line_idx: 4,
+            grapheme_idx: 3,
+        };
+        assert_eq!(buffer.search_backward("foo", &from), Some(found));
     }
 }

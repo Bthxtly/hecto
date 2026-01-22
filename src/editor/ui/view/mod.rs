@@ -9,12 +9,14 @@ use super::super::{
 use super::UIComponent;
 use buffer::Buffer;
 use location::Location;
+use search_direction::SearchDirection;
 use searchinfo::SearchInfo;
 use std::cmp::{max, min};
 
 mod buffer;
 mod fileinfo;
 mod location;
+mod search_direction;
 mod searchinfo;
 
 #[derive(Default)]
@@ -36,6 +38,7 @@ impl View {
         self.buffer.is_file_loaded()
     }
 
+    // region: save
     pub fn save(&mut self) -> Result<(), std::io::Error> {
         self.buffer.save()
     }
@@ -43,60 +46,83 @@ impl View {
     pub fn save_as(&mut self, filename: &str) -> Result<(), std::io::Error> {
         self.buffer.save_as(filename)
     }
+    // endregion
 
+    // region: search
     pub fn enter_search(&mut self) {
         self.search_info = Some(SearchInfo {
             previous_location: self.text_location,
-            query: Line::default(),
+            query: None,
         });
     }
 
     pub fn dismiss_search(&mut self) {
         if let Some(search_info) = &self.search_info {
             self.text_location = search_info.previous_location;
+            self.search_info = None;
+            // ensure the previous location is still visible even if the terminal has been resized during search
+            self.scroll_text_location_into_view();
         }
-        self.search_info = None;
-        self.scroll_text_location_into_view();
     }
 
     pub fn search(&mut self, query: &str) {
         if let Some(search_info) = &mut self.search_info {
-            search_info.query = Line::from(query);
+            search_info.query = Some(Line::from(query));
         }
-        self.search_from(self.text_location);
+        self.search_in_direction(self.text_location, SearchDirection::default());
     }
 
-    fn search_from(&mut self, from: Location) {
-        if let Some(search_info) = self.search_info.as_ref() {
-            let query = &*search_info.query;
+    // Attempts to get the current search query - for scenarios where the search query absolutely must be there.
+    // Panics if not present in debug, or if search info is not present in debug
+    // Returns None on release.
+    fn get_search_query(&self) -> Option<&Line> {
+        let query = self
+            .search_info
+            .as_ref()
+            .and_then(|search_info| search_info.query.as_ref());
+        debug_assert!(
+            query.is_some(),
+            "Attempting to search with malformed searchinfo present"
+        );
+        query
+    }
+
+    fn search_in_direction(&mut self, from: Location, direction: SearchDirection) {
+        if let Some(location) = self.get_search_query().and_then(|query| {
             if query.is_empty() {
-                return;
+                None
+            } else if direction == SearchDirection::Forward {
+                self.buffer.search_forward(query, &from)
+            } else if direction == SearchDirection::Backwoard {
+                self.buffer.search_backward(query, &from)
+            } else {
+                unreachable!()
             }
-            if let Some(location) = self.buffer.search_from(query, &from) {
-                self.text_location = location;
-                self.scroll_text_location_into_view();
-            }
+        }) {
+            self.text_location = location;
+            self.scroll_text_location_into_view();
         }
     }
 
-    // return false if not searched before
-    pub fn search_next(&mut self) -> bool {
-        if let Some(search_info) = self.search_info.as_ref() {
-            let step_right = max(1, search_info.query.grapheme_count());
-            let location = Location {
-                line_idx: self.text_location.line_idx,
-                grapheme_idx: self.text_location.grapheme_idx.saturating_add(step_right),
-            };
-            self.search_from(location);
-            true
-        } else {
-            false
-        }
+    pub fn search_next(&mut self) {
+        let step_right = self
+            .get_search_query()
+            .map_or(1, |query| max(query.grapheme_count(), 1));
+        let location = Location {
+            line_idx: self.text_location.line_idx,
+            grapheme_idx: self.text_location.grapheme_idx.saturating_add(step_right),
+        };
+        self.search_in_direction(location, SearchDirection::Forward);
     }
+
+    pub fn search_backward(&mut self) {
+        self.search_in_direction(self.text_location, SearchDirection::Backwoard);
+    }
+    // endregion
 
     pub fn get_status(&self) -> DocumentStatus {
         DocumentStatus {
-            total_lines: self.buffer.height(),
+            total_lines: self.buffer.get_height(),
             current_line_idx: self.text_location.line_idx,
             is_modified: self.buffer.dirty,
             filename: format!("{}", self.buffer.file_info),
@@ -119,6 +145,7 @@ impl View {
         Position { row, col }
     }
 
+    // region: edit
     pub fn handle_edit_command(&mut self, command: &Edit) {
         match command {
             Edit::Insert(ch) => self.insert_char(*ch),
@@ -173,7 +200,9 @@ impl View {
         self.handle_move_command(&Move::Left);
         self.delete();
     }
+    // endregion
 
+    // region: move
     pub fn handle_move_command(&mut self, command: &Move) {
         let Size { height, .. } = self.size;
 
@@ -265,7 +294,7 @@ impl View {
     // do not trigger scolling
     // line_idx can be exactly self.buffer.height() since sometimes we want to modify below buffer
     fn snap_to_valid_line(&mut self) {
-        self.text_location.line_idx = min(self.text_location.line_idx, self.buffer.height());
+        self.text_location.line_idx = min(self.text_location.line_idx, self.buffer.get_height());
     }
 
     fn scroll_text_location_into_view(&mut self) {
@@ -307,6 +336,7 @@ impl View {
 
         self.set_needs_redraw(offset_changed || self.get_needs_redraw());
     }
+    // endregion
 
     fn render_line(at: usize, line_text: &str) -> Result<(), std::io::Error> {
         Terminal::print_row(at, line_text)?;

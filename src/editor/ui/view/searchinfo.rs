@@ -3,5 +3,5 @@ use crate::editor::line::Line;
 
 pub struct SearchInfo {
     pub previous_location: Location,
-    pub query: Line,
+    pub query: Option<Line>,
 }

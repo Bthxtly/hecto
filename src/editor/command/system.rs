@@ -5,6 +5,7 @@ pub enum System {
     Save,
     Search,
     SearchNext,
+    SearchPrevious,
     Dismiss,
     Resize(Size),
     Quit,
@@ -23,6 +24,7 @@ impl TryFrom<KeyEvent> for System {
                 KeyCode::Char('s') => Ok(Self::Save),
                 KeyCode::Char('f') => Ok(Self::Search),
                 KeyCode::Char('n') => Ok(Self::SearchNext),
+                KeyCode::Char('p') => Ok(Self::SearchPrevious),
                 _ => Err(format!("Unknown not CONTROL+{code:?} combination")),
             }
         } else if modifiers == KeyModifiers::NONE && matches!(code, KeyCode::Esc) {

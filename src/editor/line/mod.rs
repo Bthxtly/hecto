@@ -174,14 +174,13 @@ impl Line {
         query: &str,
         from_grapheme_idx: GraphemeIdx,
     ) -> Option<GraphemeIdx> {
-        // skip empty line or search from right of the end
-        if self.is_empty() || self.grapheme_count() <= from_grapheme_idx {
+        if self.is_empty() || from_grapheme_idx >= self.grapheme_count() {
             return None;
         }
 
-        let from_byte_idx = self.grapheme_idx_to_byte_idx(from_grapheme_idx);
+        let start_byte_idx = self.grapheme_idx_to_byte_idx(from_grapheme_idx);
         self.string
-            .get(from_byte_idx..)
+            .get(start_byte_idx..)
             .and_then(|substr| substr.find(query))
             .map(|byte_idx| {
                 self.byte_idx_to_grapheme_idx(byte_idx)
@@ -194,19 +193,21 @@ impl Line {
         query: &str,
         from_grapheme_idx: GraphemeIdx,
     ) -> Option<GraphemeIdx> {
-        // skip empty line or search from right of the end
-        if self.is_empty() || self.grapheme_count() <= from_grapheme_idx {
+        debug_assert!(from_grapheme_idx <= self.grapheme_count());
+        if self.is_empty() || from_grapheme_idx == 0 {
             return None;
         }
 
-        let from_byte_idx = self.grapheme_idx_to_byte_idx(from_grapheme_idx);
+        let end_byte_idx = if from_grapheme_idx == self.grapheme_count() {
+            self.string.len()
+        } else {
+            self.grapheme_idx_to_byte_idx(from_grapheme_idx)
+        };
+
         self.string
-            .get(from_byte_idx..)
-            .and_then(|substr| substr.find(query))
-            .map(|byte_idx| {
-                self.byte_idx_to_grapheme_idx(byte_idx)
-                    .saturating_add(from_grapheme_idx)
-            })
+            .get(..end_byte_idx)
+            .and_then(|substr| substr.match_indices(query).last())
+            .map(|(idx, _)| self.byte_idx_to_grapheme_idx(idx))
     }
 
     // get the grapheme index from byte
@@ -215,19 +216,16 @@ impl Line {
         self.fragments
             .iter()
             .position(|fragment| fragment.byte_idx >= byte_idx)
-            .map_or_else(
-                || {
-                    #[cfg(debug_assertions)]
-                    {
-                        panic!("Invalid byte_idx passed to byte_idx_to_grapheme_idx: {byte_idx:?}");
-                    }
-                    #[cfg(not(debug_assertions))]
-                    {
-                        0
-                    }
-                },
-                |grapheme_idx| grapheme_idx,
-            )
+            .unwrap_or_else(|| {
+                #[cfg(debug_assertions)]
+                {
+                    panic!("Invalid byte_idx passed to byte_idx_to_grapheme_idx: {byte_idx:?}");
+                }
+                #[cfg(not(debug_assertions))]
+                {
+                    0
+                }
+            })
     }
 
     // get the start byte from grapheme index
@@ -261,6 +259,12 @@ impl fmt::Display for Line {
     }
 }
 
+impl std::fmt::Debug for Line {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "`{}`", self.string)
+    }
+}
+
 impl Deref for Line {
     type Target = str;
 
@@ -274,10 +278,18 @@ mod test {
     use super::*;
 
     #[test]
-    fn search_for_text() {
+    fn forward() {
         let s = "Löwe 老虎 Léopard Gepardi";
         let line = Line::from(s);
         let grapheme_idx = line.search_forward("pard", 2);
         assert_eq!(grapheme_idx, Some(11));
+    }
+
+    #[test]
+    fn backward() {
+        let s = "Löwe 老虎 Léopard Gepardi";
+        let line = Line::from(s);
+        let grapheme_idx = line.search_backward("pard", 22);
+        assert_eq!(grapheme_idx, Some(18));
     }
 }
