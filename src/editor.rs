@@ -170,6 +170,7 @@ impl Editor {
             _ => false,
         };
 
+        #[allow(clippy::collapsible_if)]
         if should_process {
             if let Ok(command) = Command::try_from(event) {
                 self.process_command(command);
