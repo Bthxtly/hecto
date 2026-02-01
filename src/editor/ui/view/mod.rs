@@ -101,6 +101,7 @@ impl View {
         }) {
             self.text_location = location;
             self.scroll_text_location_into_view();
+            self.set_needs_redraw(true);
         }
     }
 
@@ -391,8 +392,16 @@ impl UIComponent for View {
             if let Some(line) = self.buffer.lines.get(line_idx) {
                 let left = self.scroll_offset.col;
                 let right = self.scroll_offset.col.saturating_add(width);
-                let truncated_line = &line.get_visible_graphemes(left..right);
-                Self::render_line(current_row, truncated_line)?;
+                let query = self
+                    .search_info
+                    .as_ref()
+                    .and_then(|search_info| search_info.query.as_deref());
+                let selected_match = (self.text_location.line_idx == line_idx && query.is_some())
+                    .then_some(self.text_location.grapheme_idx);
+                Terminal::print_annotated_row(
+                    current_row,
+                    &line.get_annotated_visible_substr(left..right, query, selected_match),
+                )?;
             } else if (current_row == top_third) && self.buffer.is_empty() {
                 // render welcome message if no file is opened
                 Self::render_line(current_row, &Self::build_welcome_message(width))?;

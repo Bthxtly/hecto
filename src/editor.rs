@@ -7,6 +7,7 @@ use std::{
     panic::{set_hook, take_hook},
 };
 
+mod annotated_string;
 mod command;
 mod documentstatus;
 mod line;
