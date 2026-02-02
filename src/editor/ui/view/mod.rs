@@ -101,8 +101,8 @@ impl View {
         }) {
             self.text_location = location;
             self.scroll_text_location_into_view();
-            self.set_needs_redraw(true);
         }
+        self.set_needs_redraw(true);
     }
 
     pub fn search_next(&mut self) {
