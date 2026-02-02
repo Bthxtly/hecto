@@ -344,10 +344,10 @@ impl Line {
             .map_or_else(Vec::new, |substr| {
                 substr
                     .match_indices(query)
-                    .filter_map(|(relative_start_idx, _)| {
+                    .map(|(relative_start_idx, _)| {
                         let absolute_start_idx = relative_start_idx.saturating_add(start_byte_idx);
                         let grapheme_idx = self.byte_idx_to_grapheme_idx(absolute_start_idx);
-                        Some((absolute_start_idx, grapheme_idx))
+                        (absolute_start_idx, grapheme_idx)
                     })
                     .collect()
             })
