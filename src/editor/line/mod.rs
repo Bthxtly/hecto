@@ -102,6 +102,22 @@ impl Line {
 
         let mut result = AnnotatedString::from(&self.string);
 
+        // highlight digits
+        self.string
+            .chars()
+            .enumerate()
+            .for_each(|(grapheme_idx, ch)| {
+                if ch.is_ascii_digit() {
+                    let start_byte_idx = self.grapheme_idx_to_byte_idx(grapheme_idx);
+                    result.add_annotation(
+                        AnnotationType::Digit,
+                        start_byte_idx,
+                        start_byte_idx.saturating_add(1),
+                    );
+                }
+            });
+
+        // highlight searching matches
         if let Some(query) = query
             && !query.is_empty()
         {

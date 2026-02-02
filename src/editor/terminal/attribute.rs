@@ -11,16 +11,19 @@ pub struct Attribute {
 impl From<AnnotationType> for Attribute {
     fn from(annotation_type: AnnotationType) -> Self {
         match annotation_type {
-            // Match => black on yellow
             AnnotationType::Match => Self {
                 foreground: Some(Color::Black),
                 background: Some(Color::Yellow),
             },
 
-            // SelectedMatch => white on dark yellow
             AnnotationType::SelectedMatch => Self {
                 foreground: Some(Color::Black),
                 background: Some(Color::Green),
+            },
+
+            AnnotationType::Digit => Self {
+                foreground: Some(Color::Red),
+                background: None,
             },
         }
     }
