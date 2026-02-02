@@ -235,15 +235,22 @@ impl Editor {
     // clippy::arithmetic_side_effects: quit_times is guaranteed to be between 0 and QUIT_TIMES
     #[allow(clippy::arithmetic_side_effects)]
     fn handle_quit(&mut self) {
-        let is_modified = self.view.get_status().is_modified;
-        if !is_modified || self.quit_times.saturating_add(1) == QUIT_TIMES {
+        #[cfg(debug_assertions)]
+        {
             self.should_quit = true;
-        } else if is_modified {
-            self.update_message(&format!(
-                "WARNING!!! File has unsaved changes. Press Ctrl-T {} more times to quit.",
-                QUIT_TIMES - self.quit_times - 1
-            ));
-            self.quit_times += 1;
+        }
+        #[cfg(not(debug_assertions))]
+        {
+            let is_modified = self.view.get_status().is_modified;
+            if !is_modified || self.quit_times.saturating_add(1) == QUIT_TIMES {
+                self.should_quit = true;
+            } else if is_modified {
+                self.update_message(&format!(
+                    "WARNING!!! File has unsaved changes. Press Ctrl-T {} more times to quit.",
+                    QUIT_TIMES - self.quit_times - 1
+                ));
+                self.quit_times += 1;
+            }
         }
     }
 
